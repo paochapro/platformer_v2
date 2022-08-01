@@ -18,53 +18,53 @@ class Map
     {
         void WriteRoom(BinaryWriter writer, StreamReader reader)
         {
-             string roomX = reader.ReadUntil(' ', true);
-             string roomY = reader.ReadUntil(' ', true);
-             
-             string roomW = reader.ReadUntil(' ', true);
-             string roomH = reader.ReadUntil('\n', true);
+            string roomX = reader.ReadUntil(' ', true);
+            string roomY = reader.ReadUntil(' ', true);
+            
+            string roomW = reader.ReadUntil(' ', true);
+            string roomH = reader.ReadUntil('\n', true);
 
-             Console.WriteLine("Reading room:");
-             Console.WriteLine($"RX: {roomX}, RY: {roomY}");
-             Console.WriteLine($"RW: {roomW}, RH: {roomH}");
+            Console.WriteLine("Reading room:");
+            Console.WriteLine($"RX: {roomX}, RY: {roomY}");
+            Console.WriteLine($"RW: {roomW}, RH: {roomH}");
      
-             Point roomPos = new Point(int.Parse(roomX), int.Parse(roomY));
-             Point roomSize = new Point(int.Parse(roomW), int.Parse(roomH));
-             
-             writer.Write(roomPos.X);
-             writer.Write(roomPos.Y);
-             writer.Write(roomSize.X);
-             writer.Write(roomSize.Y);
+            Point roomPos = new Point(int.Parse(roomX), int.Parse(roomY));
+            Point roomSize = new Point(int.Parse(roomW), int.Parse(roomH));
+            
+            writer.Write(roomPos.X);
+            writer.Write(roomPos.Y);
+            writer.Write(roomSize.X);
+            writer.Write(roomSize.Y);
 
-             Console.WriteLine("Room:");
-             for (int y = 0; y < roomSize.Y; ++y)
-             {
-                 for (int x = 0; x < roomSize.X; ++x)
-                 {
-                     int ch = reader.Read();
+            Console.WriteLine("Room:");
+            for (int y = 0; y < roomSize.Y; ++y)
+            {
+                for (int x = 0; x < roomSize.X; ++x)
+                {
+                    int ch = reader.Read();
 
-                     Console.Write(ch);
-                     
-                     bool tileAvaliable = false;
-                     for(char numb = '0'; numb < ('9'+1); ++numb)
-                     {
-                         if (ch != numb) continue;
-                         tileAvaliable = true;
-                     }
+                    Console.Write(ch);
+                    
+                    bool tileAvaliable = false;
+                    for(char numb = '0'; numb < ('9'+1); ++numb)
+                    {
+                        if (ch != numb) continue;
+                        tileAvaliable = true;
+                    }
      
-                     if(!tileAvaliable)
-                     {
-                         throw new Exception($"Wrong tile type in ConvertToBinary: {ch}");
-                     }
+                    if(!tileAvaliable)
+                    {
+                        throw new Exception($"Wrong tile type in ConvertToBinary: {ch}");
+                    }
      
-                     writer.Write((byte)(ch - 48));
-                 }
-                 
-                 //skipping new line (13,10)
-                 reader.Read();
-                 reader.Read();
-                 Console.WriteLine();
-             }
+                    writer.Write((byte)(ch - 48));
+                }
+                
+                //skipping new line (13,10)
+                reader.Read();
+                reader.Read();
+                Console.WriteLine();
+            }
         }
 
         StreamReader reader = new StreamReader(MapDirectory + src);
@@ -124,8 +124,7 @@ class Map
         /*foreach (Room room in Rooms)
         {
             room.Draw(spriteBatch);
-        }
-        */
+        }*/
         
         Rooms[CurrentRoomIndex].Draw(spriteBatch);
     }

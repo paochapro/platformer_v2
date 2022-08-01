@@ -8,36 +8,38 @@ using static Utils;
 class Bullet : Entity
 {
     public static Group<Bullet> Bullets { get; private set; } = new();
-    private static Size2 size = new(4,8);
-    public static Texture2D BulletTexture;
+    private static Size2 size = new(4,4);
     
-    private Vector2 direction;
     private const float speed = 600f;
+    private const float maxDistance = 400f;
+    private float distancePassed;
+    private Vector2 direction;
     
     public Bullet(Point2 pos, Vector2 direction)
-        : base(new RectangleF(pos, size), BulletTexture)
+        : base(new RectangleF(pos, size), null)
     {
         this.direction = direction;
     }
 
     protected override void Update(GameTime gameTime)
     {
-        hitbox.Offset(direction * speed * Game.Delta);
-        Collision();
-    }
-
-    protected override void Draw(SpriteBatch spriteBatch)
-    {
-        RectangleF dest = hitbox with { Position = hitbox.Center };
-        spriteBatch.Draw(texture, (Rectangle)dest, null, Color.White, direction.ToAngle(), texture.Bounds.Size.ToVector2() / 2, SpriteEffects.None, 0);
-
-        if (MainGame.DebugMode)
+        while (distancePassed <= maxDistance)
         {
-            //spriteBatch.DrawRectangle(hitbox, Color.Red);
+            if (Collision())
+            {
+                BulletImpact.Impacts.Add(new BulletImpact(hitbox.Center));
+                break;
+            }
+            
+            Vector2 move = direction * speed * Game.Delta;
+            distancePassed += move.Length();
+            hitbox.Offset(move);
         }
+        
+        Destroy();
     }
 
-    private void Collision()
+    private bool Collision()
     {
         Room room = Game.CurrentMap.CurrentRoom;
 
@@ -50,12 +52,11 @@ class Bullet : Entity
                 Rectangle tileRect = new Rectangle((new Point(x,y) + room.Position) * new Point(Map.TileUnit), new Point(Map.TileUnit));
 
                 if (hitbox.Intersects(tileRect))
-                {
-                    BulletImpact.Impacts.Add(new BulletImpact(hitbox.Center));
-                    Destroy();
-                }
+                    return true;
             }
         }
+
+        return false;
     }
 }
 
@@ -66,10 +67,10 @@ class BulletImpact : Entity
     public float Radius { get; private set; }
     public Point2 Origin { get; private set; }
     
-    private const float MaxRadius = 100f;
+    private const float MaxRadius = 110f;
     private const float StartRadius = 10f;
     private const float Lifetime = 0.8f;
-    private const float ExpandSpeed = 600f;
+    private const float ExpandSpeed = 1200f;
 
     public BulletImpact(Point2 pos)
         : base(new RectangleF(pos, Point2.Zero), null)

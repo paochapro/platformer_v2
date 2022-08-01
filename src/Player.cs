@@ -11,20 +11,23 @@ class Player : Entity
     private static readonly Size2 size = new(32,32);
     public static Texture2D PlayerTexture;
 
-    private Point2 velocity;
-    private const float gravity = 1200f;
-    private const float acc = 800f;
-    private const float maxVelocityX = 2000f;
-    private const float maxVelocityY = 2000f;
-    private const float friction = 0.9f;
-    private const float minFriction = 0.5f;
-    private const float jumpVel = 500f;
-    private const float impactSpeed = 800f;
+    private Vector2 velocity;
+
+    private const float gravity         = 2400;
+    private const float maxVelocityY    = 1000f;
+    private const float maxWalkSpeed    = 400f;
+    private const float acc             = maxWalkSpeed * 3;
+    private const float impactSpeed     = 800f;
+    private const float jumpVel         = 600f;
+    private const float minVelocity     = 0.2f;
+    private const float friction        = 0.75f;
     
     private bool isTouchingGround = false;
+    private int oldDirection;
+    private int direction;
+    bool shot = false;
 
     private Point spawn;
-    bool shot = false;
 
     public Player(Point pos)
         : base(new RectangleF(pos, size), PlayerTexture)
@@ -32,29 +35,26 @@ class Player : Entity
         spawn = pos;
     }
 
-    public void Reset() => hitbox.Position = spawn;
-
+    public void Reset()
+    {
+        velocity = Vector2.Zero;
+        hitbox.Position = spawn;
+    }
+    
     protected override void Update(GameTime gameTime)
     {
         Controls();
         CollisionAndMovement();
         CheckImpacts();
+        
+        if (hitbox.Y > 1000) Reset();
     }
 
     private void Controls()
     {
-        int direction = -Convert.ToSByte(Input.IsKeyDown(Keys.A)) + Convert.ToSByte(Input.IsKeyDown(Keys.D));
+        direction = -Convert.ToSByte(Input.IsKeyDown(Keys.A)) + Convert.ToSByte(Input.IsKeyDown(Keys.D));
 
-        if (direction != 0)
-        {
-            velocity.X += direction * acc * Game.Delta;
-        }
-        else
-        {
-            velocity.X *= friction;
-            if (Math.Abs(velocity.X) < minFriction)
-                velocity.X = 0;
-        }
+        oldDirection = direction;
 
         if (Input.KeyPressed(Keys.W) && isTouchingGround)
         {
@@ -62,7 +62,6 @@ class Player : Entity
             isTouchingGround = false;
         }
 
-        
         if (Input.LBPressed() && !shot)
         {
             Vector2 mousePos = Input.Mouse.Position.ToVector2();
@@ -70,21 +69,24 @@ class Player : Entity
             Vector2 bulletDir = diff.NormalizedCopy();
             
             Bullet.Bullets.Add(new Bullet(hitbox.Center, bulletDir));
+
+            shot = true;
         }
     }
-    
+
     private void CollisionAndMovement()
     {
         isTouchingGround = false;
 
         velocity.Y += gravity * Game.Delta;
         velocity.Y = clamp(velocity.Y, -maxVelocityY, maxVelocityY);
-        velocity.X = clamp(velocity.X, -maxVelocityX, maxVelocityX);
 
+        /*Room transition
         RectangleF newHitbox = hitbox;
-        newHitbox.X += velocity.X * Game.Delta;
+        newHitbox.X += walkVelocity * Game.Delta;
         newHitbox.Y += velocity.Y * Game.Delta;
 
+        
         void CheckRooms(RectangleF newHitbox)
         {
             for (int i = 0; i < Game.CurrentMap.Rooms.Length; ++i)
@@ -98,6 +100,7 @@ class Player : Entity
             }
         }
         CheckRooms(newHitbox);
+        */
 
         //Collision
         Room room = Game.CurrentMap.CurrentRoom;
@@ -123,13 +126,42 @@ class Player : Entity
                     else
                     {
                         hitbox.Y = rect.Y + hitbox.Height;
-
                     }
                     
                     velocity.Y = 0;
                 }
             }
 
+
+        bool maxWalkSpeedExceed() => Math.Abs(velocity.X) > maxWalkSpeed;
+        bool moving = (direction != 0);
+
+        if (moving)
+        {
+            if(!maxWalkSpeedExceed() || oldDirection != direction)
+                velocity.X += direction * acc * Game.Delta;
+
+            if (maxWalkSpeedExceed() && isTouchingGround)
+                velocity.X = maxWalkSpeed * Math.Sign(velocity.X);
+        }
+        
+        if (isTouchingGround && (maxWalkSpeedExceed() || !moving))
+        {
+            //Debug info
+            /*Console.WriteLine("friction gonna be applied:");
+            Console.WriteLine("{");
+            Console.WriteLine("\tmaxWalkSpeedExceed:" + maxWalkSpeedExceed());
+            Console.WriteLine("\tmoving:" + moving);
+            Console.WriteLine("\tisTouchingGround:" + isTouchingGround);
+            Console.WriteLine("\tdirection:" + direction);
+            Console.WriteLine("}");*/
+            
+            velocity.X *= friction;
+        }
+
+        if (Math.Abs(velocity.X) <= minVelocity)
+            velocity.X = 0;
+        
         hitbox.X += velocity.X * Game.Delta;
 
         for (int y = 0; y < room.Size.Height; ++y)
@@ -161,12 +193,15 @@ class Player : Entity
         BulletImpact.Impacts.Iterate(impact =>
         {
             float dist = Vector2.Distance(hitbox.Center, (Vector2)impact.Origin);
+            
             if (dist < impact.Radius)
             {
                 Vector2 diff = hitbox.Center - impact.Origin;
                 Vector2 launchDirection = diff.NormalizedCopy();
 
                 velocity = launchDirection * impactSpeed;
+                
+                impact.Destroy();
                 
                 shot = true;
             }

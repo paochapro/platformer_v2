@@ -81,13 +81,12 @@ class MainGame : Game
 
         CreateUi();
 
-        Map.ConvertToBinary("map1.txt", "bin_map1.bin");
+        Map.ConvertToBinary("map2.txt", "bin_map2.bin");
         CurrentMap = new Map("bin_map1");
 
         Player.PlayerTexture = Assets.LoadTexture("error");
-        Bullet.BulletTexture = Assets.LoadTexture("error");
 
-        player = new Player(new Point(0, -100));
+        player = new Player(new Point(0, 900));
         Entity.AddEntity(player);
 
         State = GameState.Game;
@@ -177,6 +176,7 @@ class MainGame : Game
     private void DrawMenu()
     {
     }
+
 
     protected override void Draw(GameTime gameTime)
     {
