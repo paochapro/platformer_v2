@@ -6,8 +6,10 @@
   <SourceFiles>
     <File>D:/Files/C#/projects/games/platformer_v2/Content/bahnschrift.spritefont</File>
     <File>D:/Files/C#/projects/games/platformer_v2/Content/error.png</File>
+    <File>D:/Files/C#/projects/games/platformer_v2/Content/player.png</File>
   </SourceFiles>
   <DestFiles>
+    <File xsi:nil="true" />
     <File xsi:nil="true" />
     <File xsi:nil="true" />
   </DestFiles>

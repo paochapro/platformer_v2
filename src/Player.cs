@@ -13,14 +13,15 @@ class Player : Entity
 
     private Vector2 velocity;
 
-    private const float gravity         = 2400;
+    private const float acc             = maxWalkSpeed * 3;
+    private const float gravity         = 2000;
     private const float maxVelocityY    = 1000f;
     private const float maxWalkSpeed    = 400f;
-    private const float acc             = maxWalkSpeed * 3;
-    private const float impactSpeed     = 800f;
+    private const float impactSpeed     = 900f;
     private const float jumpVel         = 600f;
     private const float minVelocity     = 0.2f;
     private const float friction        = 0.75f;
+    private const float airdrag        = 0.98f;
     
     private bool isTouchingGround = false;
     private int oldDirection;
@@ -53,7 +54,6 @@ class Player : Entity
     private void Controls()
     {
         direction = -Convert.ToSByte(Input.IsKeyDown(Keys.A)) + Convert.ToSByte(Input.IsKeyDown(Keys.D));
-
         oldDirection = direction;
 
         if (Input.KeyPressed(Keys.W) && isTouchingGround)
@@ -158,6 +158,8 @@ class Player : Entity
             
             velocity.X *= friction;
         }
+        else
+            velocity.X *= airdrag;
 
         if (Math.Abs(velocity.X) <= minVelocity)
             velocity.X = 0;
@@ -192,7 +194,7 @@ class Player : Entity
     {
         BulletImpact.Impacts.Iterate(impact =>
         {
-            float dist = Vector2.Distance(hitbox.Center, (Vector2)impact.Origin);
+            float dist = Vector2.Distance(hitbox.Center, impact.Origin);
             
             if (dist < impact.Radius)
             {

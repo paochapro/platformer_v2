@@ -82,9 +82,9 @@ class MainGame : Game
         CreateUi();
 
         Map.ConvertToBinary("map2.txt", "bin_map2.bin");
-        CurrentMap = new Map("bin_map1");
+        CurrentMap = new Map("bin_map2");
 
-        Player.PlayerTexture = Assets.LoadTexture("error");
+        Player.PlayerTexture = Assets.LoadTexture("player");
 
         player = new Player(new Point(0, 900));
         Entity.AddEntity(player);

@@ -24,9 +24,9 @@ class Map
             string roomW = reader.ReadUntil(' ', true);
             string roomH = reader.ReadUntil('\n', true);
 
-            Console.WriteLine("Reading room:");
-            Console.WriteLine($"RX: {roomX}, RY: {roomY}");
-            Console.WriteLine($"RW: {roomW}, RH: {roomH}");
+            //Console.WriteLine("Reading room:");
+            //Console.WriteLine($"RX: {roomX}, RY: {roomY}");
+            //Console.WriteLine($"RW: {roomW}, RH: {roomH}");
      
             Point roomPos = new Point(int.Parse(roomX), int.Parse(roomY));
             Point roomSize = new Point(int.Parse(roomW), int.Parse(roomH));
@@ -43,7 +43,7 @@ class Map
                 {
                     int ch = reader.Read();
 
-                    Console.Write(ch);
+                    //Console.Write(ch);
                     
                     bool tileAvaliable = false;
                     for(char numb = '0'; numb < ('9'+1); ++numb)
@@ -63,7 +63,7 @@ class Map
                 //skipping new line (13,10)
                 reader.Read();
                 reader.Read();
-                Console.WriteLine();
+                //Console.WriteLine();
             }
         }
 
