@@ -7,7 +7,8 @@ using static Utils;
 
 class Bullet : Entity
 {
-    public static Group<Bullet> Bullets { get; private set; } = new();
+    private static List<Bullet> bullets = new();
+
     private static Size2 size = new(4,4);
     
     private const float speed = 600f;
@@ -19,6 +20,9 @@ class Bullet : Entity
         : base(new RectangleF(pos, size), null)
     {
         this.direction = direction;
+
+        PreDestroy += () => { bullets.Remove(this); };
+        bullets.Add(this);
     }
 
     protected override void Update(GameTime gameTime)
@@ -27,7 +31,7 @@ class Bullet : Entity
         {
             if (Collision())
             {
-                BulletImpact.Impacts.Add(new BulletImpact(hitbox.Center));
+                Entity.AddEntity(new BulletImpact(hitbox.Center));
                 break;
             }
             
@@ -41,54 +45,31 @@ class Bullet : Entity
 
     private bool Collision()
     {
-        Room room = Game.CurrentMap.CurrentRoom;
-
-        for (int y = 0; y < room.Size.Height; ++y)
-        {
-            for (int x = 0; x < room.Size.Width; ++x)
-            {
-                if (!room.Tiles[y, x]) continue;
-                
-                Rectangle tileRect = new Rectangle((new Point(x,y) + room.Position) * new Point(Map.TileUnit), new Point(Map.TileUnit));
-
-                if (hitbox.Intersects(tileRect))
-                    return true;
-            }
-        }
+        foreach (Rectangle wall in Game.CurrentMap.Walls)
+            if (hitbox.Intersects(wall))
+                return true;
 
         return false;
     }
 }
 
-class BulletImpact : Entity
+class BulletImpact : Interactable
 {
-    public static Group<BulletImpact> Impacts { get; private set; } = new();
+    private const float Lifetime = 0.1f;
+    public const float Radius = 110f;
+    private const float MaxPlayerDistance = Radius;
+    private const float MinPlayerDistance = 20f;
 
-    public float Radius { get; private set; }
+    private const float MaxImpactSpeed = 1200f;
+    private const float MinImpactSpeed = 1000f - Radius;
+
     public Point2 Origin { get; private set; }
     
-    private const float MaxRadius = 110f;
-    private const float StartRadius = 10f;
-    private const float Lifetime = 0.8f;
-    private const float ExpandSpeed = 1200f;
-
     public BulletImpact(Point2 pos)
         : base(new RectangleF(pos, Point2.Zero), null)
     {
         Origin = pos;
-        Radius = StartRadius;
         Event.Add(Destroy, Lifetime);
-    }
-
-    private void Expand()
-    {
-        Radius += ExpandSpeed * Game.Delta;
-        Radius = clamp(Radius, 0, MaxRadius);
-    }
-    
-    protected override void Update(GameTime gameTime)
-    {
-        Expand();
     }
 
     protected override void Draw(SpriteBatch spriteBatch)
@@ -97,5 +78,45 @@ class BulletImpact : Entity
         {
             spriteBatch.DrawCircle(hitbox.Center, Radius, 32, Color.Red);
         }
+    }
+
+    protected override void Update(GameTime gameTime)
+    {
+    }
+
+    public override void TouchesPlayer(Player player)
+    {
+        float dist = Vector2.Distance(player.Hitbox.Center, Origin);
+
+        if(dist < Radius) OnPlayerTouch(player);
+    }
+
+    protected override void OnPlayerTouch(Player player)
+    {
+        Vector2 diff = player.Hitbox.Center - Origin;
+        Vector2 launchDirection = diff.NormalizedCopy();
+
+        float distance = diff.Length();
+
+        float value = inverseLerp(MinPlayerDistance, MaxPlayerDistance, distance);
+
+        float launchSpeed = lerp(MaxImpactSpeed, MinImpactSpeed, value);
+
+        // Console.WriteLine("value:" + value);
+        // Console.WriteLine("launchSpeed:" + launchSpeed);
+        // Console.WriteLine("distance: " + distance);
+
+        player.ImpactBehavior(launchDirection, launchSpeed);
+
+        Destroy();
+    }
+}
+
+partial class Player
+{
+    public void ImpactBehavior(Vector2 direction, float speed)
+    {
+        velocity.Y = 0;
+        velocity += direction * speed;
     }
 }

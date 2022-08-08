@@ -14,7 +14,7 @@ class MainGame : Game
     private const string GameName = "PlatformerV2";
     private const float DefaultVolume = 0.3f;
     private const bool Resizable = false;
-    private readonly Point DefaultScreenSize = new(1400, 1000);
+    private readonly Point DefaultScreenSize = new(1400, 1000); //computer (1400, 1000) / notebook (1400, 800)
     
     public Point Screen => screen;
     private Point screen;
@@ -23,7 +23,7 @@ class MainGame : Game
     public GraphicsDeviceManager Graphics => graphics;
     private GraphicsDeviceManager graphics;
     private SpriteBatch spriteBatch;
-    private OrthographicCamera camera;
+    public OrthographicCamera camera { get; set; }
     
     private readonly Dictionary<GameState, Action> drawMethods;
     private readonly Dictionary<GameState, Action<GameTime>> updateMethods;
@@ -47,10 +47,7 @@ class MainGame : Game
     
     //Game
     public Map CurrentMap { get; private set; }
-    
-    public void Death()
-    {
-    }
+    public Point spawn;
     
     //Initialization
     private void ChangeScreenSize(Point size)
@@ -63,10 +60,18 @@ class MainGame : Game
 
     public void Reset()
     {
-        
+        CurrentMap.Reload();
     }
 
-    private Player player;
+    public Player Player { get; set; }
+
+    public void CreatePlayer()
+    {
+        Player player = new Player(spawn);
+        Entity.AddEntity(player);
+        Player = player;
+    }
+
     protected override void LoadContent()
     {
         spriteBatch = new SpriteBatch(GraphicsDevice);
@@ -81,13 +86,10 @@ class MainGame : Game
 
         CreateUi();
 
-        Map.ConvertToBinary("map2.txt", "bin_map2.bin");
-        CurrentMap = new Map("bin_map2");
+        Player.PlayerTexture = Assets.LoadTexture("Player");
 
-        Player.PlayerTexture = Assets.LoadTexture("player");
-
-        player = new Player(new Point(0, 900));
-        Entity.AddEntity(player);
+        Map.ConvertToBinary("map3.txt", "bin_map3.bin");
+        CurrentMap = new Map("bin_map3", this);
 
         State = GameState.Game;
     }
@@ -135,6 +137,8 @@ class MainGame : Game
         base.Update(gameTime);
     }
 
+    private bool drawGrid;
+    private bool drawRooms;
     private void Controls()
     {
         if (Input.KeyPressed(Keys.OemTilde)) 
@@ -150,8 +154,11 @@ class MainGame : Game
             
             if (Input.KeyPressed(Keys.D2))
             {
-                player.Reset();
+                Player.Death();
             }
+            
+            if (Input.KeyPressed(Keys.D3)) drawGrid = !drawGrid;
+            if (Input.KeyPressed(Keys.D4)) drawRooms = !drawRooms;
 
             float zoom = Input.Mouse.ScrollWheelValue / 2000f + 1f;
             camera.Zoom = clamp(zoom, camera.MinimumZoom, camera.MaximumZoom);
@@ -161,16 +168,35 @@ class MainGame : Game
     //Draw
     private void DrawGame()
     {
+        void drawMainElements()
+        {
+            CurrentMap.Draw(spriteBatch);
+            Entity.DrawAll(spriteBatch);
+        }
+
         if (DebugMode)
         {
-            foreach (Room room in CurrentMap.Rooms)
+            drawMainElements();
+
+            if(drawGrid)
             {
-                spriteBatch.FillRectangle(new Rectangle(room.Position * new Point(Map.TileUnit), room.Size * new Point(Map.TileUnit)), Color.Fuchsia);
+                for(int y = 0; y < screen.Y; y += 32)
+                {
+                    spriteBatch.DrawLine(0, y, screen.X, y, new Color(Color.Black,100));
+                }
+                for(int x = 0; x < screen.X; x += 32)
+                {
+                    spriteBatch.DrawLine(x, 0, x, screen.Y, new Color(Color.Black,100));
+                }
             }
+            
+            spriteBatch.DrawString(UI.Font, "Ents count: " + Entity.Count.ToString(), camera.Position, Color.Red);
+
+            
+            return;
         }
-        
-        CurrentMap.Draw(spriteBatch);
-        Entity.DrawAll(spriteBatch);
+
+        drawMainElements();
     }
 
     private void DrawMenu()

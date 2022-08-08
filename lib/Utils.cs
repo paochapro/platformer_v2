@@ -129,4 +129,7 @@ internal static class Utils
     public static int Round(float value) => (int)Math.Round(value);
 
     public static Point2 Center(this Point2 p1, Point2 p2) => new Point2( (p1.X + p2.X) / 2, (p1.Y + p2.Y) / 2);
+
+    public static float lerp(float a, float b, float t) => (1-t) * a + t * b;
+    public static float inverseLerp(float a, float b, float v) => (v-a) / (b-a);
 }

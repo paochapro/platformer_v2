@@ -25,7 +25,7 @@ static class Input
     
     //Keys
     public static bool KeyPressed(Keys key) => Keys.IsKeyDown(key) && !PreviousKeys.IsKeyDown(key);
-    public static bool KeyNotPressed(Keys key) => !Keys.IsKeyDown(key) && PreviousKeys.IsKeyDown(key);
+    public static bool KeyReleased(Keys key) => !Keys.IsKeyDown(key) && PreviousKeys.IsKeyDown(key);
     public static bool IsKeyDown(Keys key) => Keys.IsKeyDown(key);
     public static bool IsKeyUp(Keys key) => Keys.IsKeyUp(key);
 }
