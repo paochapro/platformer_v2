@@ -33,16 +33,14 @@ abstract partial class Entity
     {
         void removing()
         {
-            int index = ents.IndexOf(ent);
-        
             //Removing from entities
             //If entity was updated, update position should be lowered
-            if (index <= updatePosition) --updatePosition;
+            if(ents.IndexOf(ent) <= updatePosition) --updatePosition;
             if(updatePosition < 0) updatePosition = 0;
 
             if (!ents.Remove(ent))
             {
-                //throw new Exception("Entity wasnt found in ents when removing - Entity/RemoveEntity");
+                throw new Exception("Entity wasnt found in ents when removing - Entity/RemoveEntity");
             }
         }
 

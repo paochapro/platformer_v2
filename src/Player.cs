@@ -12,20 +12,22 @@ partial class Player : Entity
     public static Texture2D PlayerTexture;
 
     public Vector2 velocity;
-
     private Color currentColor;
-    private static readonly Color noShotColor = Color.Blue;
-    private static readonly Color haveShotColor = Color.White;
+    private static readonly Color nobulletColor = Color.Blue;
+    private static readonly Color havebulletColor = Color.White;
 
+    //Movement
     private const float acc             = maxWalkSpeed * 3;
     private const float gravity         = 2000;
+    private const float wallSlide       = 270;
     private const float maxVelocityY    = 1000f;
     private const float maxWalkSpeed    = 400f;
     private const float jumpVel         = 600f;
     private const float minVelocity     = 0.2f;
     private const float friction        = 0.75f;
-    private const float airdrag        = 0.98f;
-
+    private const float airdrag         = 0.98f;
+    
+    //Other
     private readonly Vector2 wallJumpVelocity = new(jumpVel * 0.7f, -jumpVel * 0.8f);
 
     public bool isTouchingGround { get; private set; }
@@ -35,8 +37,9 @@ partial class Player : Entity
 
     private int oldDirection;
     private int direction;
-    private bool shot = false;
-
+    private bool bullet;
+    private bool shooting;
+    
     private Point spawn;
 
     public Player(Point pos)
@@ -60,10 +63,13 @@ partial class Player : Entity
     protected override void Update(GameTime gameTime)
     {
         Controls();
-        CollisionAndMovement();
-        CheckInteractables();
+        Movement();
+        Collision();
 
-        currentColor = shot ? noShotColor : haveShotColor;
+        CheckInteractables();
+        CheckRooms();
+        
+        currentColor = bullet ? havebulletColor : nobulletColor;
 
         if (hitbox.Y > 1000) Death();
     }
@@ -90,25 +96,36 @@ partial class Player : Entity
             }
         }
 
-        if (Input.LBPressed() && !shot)
+        shooting = false;
+        if (Input.LBPressed() && bullet)
         {
             Vector2 mousePos = Input.Mouse.Position.ToVector2() + Game.camera.Position;
             Vector2 diff = mousePos - (Vector2)hitbox.Center;
             Vector2 bulletDir = diff.NormalizedCopy();
             
             Entity.AddEntity(new Bullet(hitbox.Center, bulletDir));
-
-            shot = true;
+            
+            bullet = false;
+            shooting = true;
         }
 
         if (Input.RBPressed())
         {
-            hitbox.Position = (Input.Mouse.Position + Game.CurrentMap.CurrentRoomRectangle.Location).ToVector2() * Game.camera.Zoom;
+            hitbox.Position = Input.Mouse.Position.ToVector2() + Game.camera.Position;
         }
     }
-
+    
     private void Movement()
     {
+        //y
+        if (isTouchingWall && direction == -touchingWallNormal && velocity.Y > wallSlide) 
+            velocity.Y = wallSlide;
+        else
+            velocity.Y += gravity * Game.Delta;
+        
+        velocity.Y = clamp(velocity.Y, -maxVelocityY, maxVelocityY);
+        
+        //x
         bool maxWalkSpeedExceed() => Math.Abs(velocity.X) > maxWalkSpeed;
         bool moving = (direction != 0);
 
@@ -121,46 +138,35 @@ partial class Player : Entity
                 velocity.X = maxWalkSpeed * Math.Sign(velocity.X);
         }
         
-        if (isTouchingGround && (maxWalkSpeedExceed() || !moving))            
+        if (isTouchingGround && (maxWalkSpeedExceed() || !moving))
             velocity.X *= friction;
-        else
+        else //rework
             velocity.X *= airdrag;
 
         if (Math.Abs(velocity.X) <= minVelocity)
             velocity.X = 0;
     }
 
-    private void CollisionAndMovement()
+    private void CheckRooms()
     {
-        isTouchingGround = false;
-        isTouchingWall = false;
-        touchingWallNormal = 0;
+        Map map = Game.CurrentMap;
+        int index = 0;
+            
+        foreach (Rectangle roomRectangle in map.RoomRectangles)
+        {
+            if (roomRectangle.Contains(hitbox.Center))
+                map.LoadRoom(index);
+            
+            ++index;
+        }
+    }
 
-        velocity.Y += gravity * Game.Delta;
-        velocity.Y = clamp(velocity.Y, -maxVelocityY, maxVelocityY);
-
+    private void Collision()
+    {
+        //Room transition
         Map map = Game.CurrentMap;
 
-        //Room transition
-        RectangleF newHitbox = hitbox;
-        newHitbox.Position += velocity * Game.Delta;
-        
-        void CheckRooms(RectangleF newHitbox)
-        {
-            Map map = Game.CurrentMap;
-            int index = 0;
-            
-            foreach (Rectangle roomRectangle in map.RoomRectangles)
-            {
-                if (roomRectangle.Contains(hitbox.Center))
-                {
-                    map.LoadRoom(index);
-                }
-                ++index;
-            }
-        }
-        CheckRooms(newHitbox);
-
+        //Collisions
         void collisionY(RectangleF rect)
         {
             if(hitbox.Intersects(rect))
@@ -172,7 +178,9 @@ partial class Player : Entity
                     hitbox.Y = rect.Y - hitbox.Height;
                     isTouchingGround = true;
                     isJumping = false;
-                    shot = false;
+
+                    if(!shooting) 
+                        bullet = true;
                 }
                 else
                 {
@@ -199,10 +207,11 @@ partial class Player : Entity
                 touchingWallNormal = -Math.Sign(velocity.X);
             }
         }
-
+        
         //Collision Y
+        isTouchingGround = false;
         hitbox.Y += velocity.Y * Game.Delta;
-
+        
         foreach (Rectangle wall in map.Walls)
             collisionY(wall);
         
@@ -210,10 +219,9 @@ partial class Player : Entity
             if(hitbox.Intersects(solid.SolidHitbox))
                 collisionY(solid.SolidHitbox);
 
-        //Movement
-        Movement();
-        
         //Collision X
+        isTouchingWall = false;
+        touchingWallNormal = 0;
         hitbox.X += velocity.X * Game.Delta;
 
         foreach (Rectangle wall in map.Walls)
@@ -223,6 +231,7 @@ partial class Player : Entity
             if(hitbox.Intersects(solid.SolidHitbox))
                 collisionX(solid.SolidHitbox);
 
+        //Wall jump
         foreach (Rectangle wall in map.Walls)
         {
             RectangleF rightHitbox = hitbox with { X = hitbox.X + 1};

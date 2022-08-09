@@ -152,18 +152,37 @@ class MainGame : Game
                 Console.WriteLine("Players is " + (PlayerInvincible ? "" : "not ") + "invincible");  
             }
             
-            if (Input.KeyPressed(Keys.D2))
-            {
-                Player.Death();
-            }
+            if (Input.KeyPressed(Keys.D2)) Player.Death();
+            
             
             if (Input.KeyPressed(Keys.D3)) drawGrid = !drawGrid;
             if (Input.KeyPressed(Keys.D4)) drawRooms = !drawRooms;
 
             float zoom = Input.Mouse.ScrollWheelValue / 2000f + 1f;
             camera.Zoom = clamp(zoom, camera.MinimumZoom, camera.MaximumZoom);
+
+            if (Input.Mouse.MiddleButton == ButtonState.Pressed)
+            {
+                if (!startMoving)
+                {
+                    startingPoint = Input.Mouse.Position.ToVector2();
+                    startingCamera = camera.Position;
+                }
+
+                endPoint = Input.Mouse.Position.ToVector2();
+                camera.Position = startingCamera - (endPoint - startingPoint);
+
+                startMoving = true;
+            }
+            else
+                startMoving = false;
         }
     }
+
+    private bool startMoving;
+    private Vector2 startingPoint;
+    private Vector2 startingCamera;
+    private Vector2 endPoint;
     
     //Draw
     private void DrawGame()
@@ -191,8 +210,8 @@ class MainGame : Game
             }
             
             spriteBatch.DrawString(UI.Font, "Ents count: " + Entity.Count.ToString(), camera.Position, Color.Red);
+            spriteBatch.DrawString(UI.Font, "Touching ground: " + Player.isTouchingGround, camera.Position + new Vector2(0, 30), Color.Red);
 
-            
             return;
         }
 

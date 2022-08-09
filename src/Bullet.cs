@@ -7,8 +7,6 @@ using static Utils;
 
 class Bullet : Entity
 {
-    private static List<Bullet> bullets = new();
-
     private static Size2 size = new(4,4);
     
     private const float speed = 600f;
@@ -20,13 +18,7 @@ class Bullet : Entity
         : base(new RectangleF(pos, size), null)
     {
         this.direction = direction;
-
-        PreDestroy += () => { bullets.Remove(this); };
-        bullets.Add(this);
-    }
-
-    protected override void Update(GameTime gameTime)
-    {
+        
         while (distancePassed <= maxDistance)
         {
             if (Collision())
@@ -39,10 +31,10 @@ class Bullet : Entity
             distancePassed += move.Length();
             hitbox.Offset(move);
         }
-        
-        Destroy();
     }
 
+    protected override void Update(GameTime gameTime) => Destroy();
+    
     private bool Collision()
     {
         foreach (Rectangle wall in Game.CurrentMap.Walls)
@@ -80,9 +72,7 @@ class BulletImpact : Interactable
         }
     }
 
-    protected override void Update(GameTime gameTime)
-    {
-    }
+    protected override void Update(GameTime gameTime) { }
 
     public override void TouchesPlayer(Player player)
     {

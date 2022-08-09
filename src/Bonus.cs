@@ -35,8 +35,8 @@ partial class Player : Entity
 {
     public bool BonusBehavior()
     {
-        if (!shot) return false;
-        shot = false;
+        if (bullet) return false;
+        bullet = true;
         return true;
     }
 }
