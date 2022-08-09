@@ -51,7 +51,7 @@ class Map
         }
     }
 
-    private List<ISolid> solids;
+    public List<ISolid> solids;
     public IEnumerable<ISolid> Solids => solids;
     
     //Walls
@@ -83,6 +83,7 @@ class Map
         Spring = 3,
         Bonus = 4,
         Spike = 5,
+        MovingBlock = 6,
         //Max
         Max,
     }
@@ -91,6 +92,7 @@ class Map
         [Tile.Spring] = typeof(Spring),
         [Tile.Bonus] = typeof(Bonus),
         [Tile.Spike] = typeof(Spike),
+        [Tile.MovingBlock] = typeof(MovingBlock)
     };
 
     public Map(string filename, MainGame game)

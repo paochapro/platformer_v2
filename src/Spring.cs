@@ -46,6 +46,10 @@ class Spring : Interactable, ISolid
         hitbox = new(pos with { Y = activateY, X=pos.X+1}, activateSize);   //Activation hitbox
         SolidHitbox = new(pos with {Y = collisionY}, solidSize);            //Collision hitbox
         launchHitbox = new(pos with {Y = launchY}, launchSize);             //Jump/Launch hitbox
+        
+        //Solids
+        Game.CurrentMap.solids.Add(this);
+        PreDestroy += (() => Game.CurrentMap.solids.Remove(this));
     }
 
     protected override void Update(GameTime gameTime)

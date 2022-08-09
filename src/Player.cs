@@ -29,6 +29,8 @@ partial class Player : Entity
     
     //Other
     private readonly Vector2 wallJumpVelocity = new(jumpVel * 0.7f, -jumpVel * 0.8f);
+    private const float preJumpLimit = 0.15f;
+    private float preJumpTimer;
 
     public bool isTouchingGround { get; private set; }
     public bool isTouchingWall { get; private set; }
@@ -58,14 +60,18 @@ partial class Player : Entity
     protected override void Draw(SpriteBatch spriteBatch)
     {
         spriteBatch.Draw(texture, (Rectangle)hitbox, currentColor);
+        
+        if (MainGame.DebugMode)
+        {
+            Vector2 endVec = (new Vector2(direction, 0) * (hitbox.Width / 2)) + hitbox.Center;
+            spriteBatch.DrawLine(hitbox.Center, endVec, Color.Red);
+        }
     }
 
     protected override void Update(GameTime gameTime)
     {
         Controls();
-        Movement();
-        Collision();
-
+        CollisionAndMovement();
         CheckInteractables();
         CheckRooms();
         
@@ -78,25 +84,37 @@ partial class Player : Entity
     {
         direction = -Convert.ToSByte(Input.IsKeyDown(Keys.A)) + Convert.ToSByte(Input.IsKeyDown(Keys.D));
         oldDirection = direction;
-
-        if (Input.KeyPressed(Keys.W))
-        {
-            if(isTouchingGround)
-            {
-                velocity.Y = -jumpVel;
-                isTouchingGround = false;
-                isJumping = true;
-            }
-
-            if(isTouchingWall)
-            {
-                isTouchingWall = false;
-                isJumping = true;
-                velocity = wallJumpVelocity * new Vector2(touchingWallNormal, 1);
-            }
-        }
-
         shooting = false;
+
+        if (Input.IsKeyDown(Keys.W))
+        {
+            void jumping()
+            {
+                if (isTouchingGround)
+                {
+                    velocity.Y = -jumpVel;
+                    isTouchingGround = false;
+                    isJumping = true;
+                }
+
+                if (isTouchingWall)
+                {
+                    isTouchingWall = false;
+                    isJumping = true;
+                    velocity = wallJumpVelocity * new Vector2(touchingWallNormal, 1);
+                }
+            }
+
+            if (preJumpTimer < preJumpLimit)
+            {
+                jumping();
+            }
+
+            preJumpTimer += Game.Delta;
+        }
+        else
+            preJumpTimer = 0;
+
         if (Input.LBPressed() && bullet)
         {
             Vector2 mousePos = Input.Mouse.Position.ToVector2() + Game.camera.Position;
@@ -109,23 +127,48 @@ partial class Player : Entity
             shooting = true;
         }
 
-        if (Input.RBPressed())
+        if (MainGame.DebugMode && Input.RBPressed())
         {
             hitbox.Position = Input.Mouse.Position.ToVector2() + Game.camera.Position;
         }
     }
-    
-    private void Movement()
+
+    //Collision and movement
+    private void CollisionAndMovement()
     {
-        //y
+        Map map = Game.CurrentMap;
+        var collideables = map.Walls.Select(w => (RectangleF)w).Union(map.Solids.Select(s => s.SolidHitbox)).ToList();
+        
+        //Y
+        MovementY();
+        
+        isTouchingGround = false;
+        hitbox.Y += velocity.Y * Game.Delta;
+
+        collideables.ForEach(c => CollisionY(c));
+
+        //X
+        MovementX();
+        
+        isTouchingWall = false;
+        touchingWallNormal = 0;
+        hitbox.X += velocity.X * Game.Delta;
+
+        collideables.ForEach(c => CollisionX(c));
+    }
+
+    private void MovementY()
+    {
         if (isTouchingWall && direction == -touchingWallNormal && velocity.Y > wallSlide) 
             velocity.Y = wallSlide;
         else
             velocity.Y += gravity * Game.Delta;
         
         velocity.Y = clamp(velocity.Y, -maxVelocityY, maxVelocityY);
-        
-        //x
+    }
+    
+    private void MovementX()
+    {
         bool maxWalkSpeedExceed() => Math.Abs(velocity.X) > maxWalkSpeed;
         bool moving = (direction != 0);
 
@@ -138,15 +181,92 @@ partial class Player : Entity
                 velocity.X = maxWalkSpeed * Math.Sign(velocity.X);
         }
         
+        //TODO: little rework
         if (isTouchingGround && (maxWalkSpeedExceed() || !moving))
             velocity.X *= friction;
-        else //rework
+        else if(!isTouchingGround)
             velocity.X *= airdrag;
-
+        
         if (Math.Abs(velocity.X) <= minVelocity)
             velocity.X = 0;
     }
+    
+    private bool CollisionY(RectangleF rect)
+    {
+        if(hitbox.Intersects(rect))
+        {
+            hitbox.Y = (float)Math.Round(hitbox.Y);
 
+            if (velocity.Y > 0)
+            {
+                hitbox.Y = rect.Y - hitbox.Height;
+                isTouchingGround = true;
+                isJumping = false;
+
+                if(!shooting) 
+                    bullet = true;
+            }
+            else
+            {
+                hitbox.Y = rect.Y + hitbox.Height;
+            }
+            
+            velocity.Y = 0;
+
+            return true;
+        }
+
+        return false;
+    }
+    
+    private bool CollisionX(RectangleF rect)
+    {
+        bool collided = false;
+        
+        //Collisions
+        if(hitbox.Intersects(rect))
+        {
+            hitbox.X = (float)Math.Round(hitbox.X);
+            
+            hitbox.X = velocity.X > 0   
+                ? rect.X - hitbox.Width
+                : rect.X + hitbox.Width;
+            
+            velocity.X = 0;
+
+            isTouchingWall = true;
+            touchingWallNormal = -Math.Sign(velocity.X);
+
+            collided = true;
+        }
+        
+        //Wall jumping
+        RectangleF rightHitbox = hitbox with { X = hitbox.X + 1};
+        RectangleF leftHitbox = hitbox with { X = hitbox.X - 1};
+        bool leftCollision = false;
+        bool rightCollision = false;
+
+        if(rightHitbox.Intersects(rect))
+        {
+            rightCollision = true;
+            touchingWallNormal = -1;
+            isTouchingWall = true;
+        }
+        if(leftHitbox.Intersects(rect))
+        {
+            leftCollision = true;
+            touchingWallNormal = 1;
+            isTouchingWall = true;
+        }
+        if (leftCollision && rightCollision)
+        {
+            touchingWallNormal = -direction;
+        }
+
+        return collided;
+    }
+
+    //Other
     private void CheckRooms()
     {
         Map map = Game.CurrentMap;
@@ -161,95 +281,6 @@ partial class Player : Entity
         }
     }
 
-    private void Collision()
-    {
-        //Room transition
-        Map map = Game.CurrentMap;
-
-        //Collisions
-        void collisionY(RectangleF rect)
-        {
-            if(hitbox.Intersects(rect))
-            {
-                hitbox.Y = (float)Math.Round(hitbox.Y);
-
-                if (velocity.Y > 0)
-                {
-                    hitbox.Y = rect.Y - hitbox.Height;
-                    isTouchingGround = true;
-                    isJumping = false;
-
-                    if(!shooting) 
-                        bullet = true;
-                }
-                else
-                {
-                    hitbox.Y = rect.Y + hitbox.Height;
-                }
-                
-                velocity.Y = 0;
-            }
-        }
-
-        void collisionX(RectangleF rect)
-        {
-            if(hitbox.Intersects(rect))
-            {
-                hitbox.X = (float)Math.Round(hitbox.X);
-                
-                hitbox.X = velocity.X > 0   
-                    ? rect.X - hitbox.Width
-                    : rect.X + hitbox.Width;
-                
-                velocity.X = 0;
-
-                isTouchingWall = true;
-                touchingWallNormal = -Math.Sign(velocity.X);
-            }
-        }
-        
-        //Collision Y
-        isTouchingGround = false;
-        hitbox.Y += velocity.Y * Game.Delta;
-        
-        foreach (Rectangle wall in map.Walls)
-            collisionY(wall);
-        
-        foreach(ISolid solid in map.Solids)
-            if(hitbox.Intersects(solid.SolidHitbox))
-                collisionY(solid.SolidHitbox);
-
-        //Collision X
-        isTouchingWall = false;
-        touchingWallNormal = 0;
-        hitbox.X += velocity.X * Game.Delta;
-
-        foreach (Rectangle wall in map.Walls)
-            collisionX(wall);
-
-        foreach(ISolid solid in map.Solids)
-            if(hitbox.Intersects(solid.SolidHitbox))
-                collisionX(solid.SolidHitbox);
-
-        //Wall jump
-        foreach (Rectangle wall in map.Walls)
-        {
-            RectangleF rightHitbox = hitbox with { X = hitbox.X + 1};
-            RectangleF leftHitbox = hitbox with { X = hitbox.X - 1};
-
-            if(rightHitbox.Intersects(wall))
-            {
-                touchingWallNormal = -1;
-                isTouchingWall = true;
-            }
-            if(leftHitbox.Intersects(wall))
-            {
-                touchingWallNormal = 1;
-                isTouchingWall = true;
-            }
-        }
-    }
-    
     private void CheckInteractables()
     {
         Interactable.Iterate(i => i.TouchesPlayer(this));

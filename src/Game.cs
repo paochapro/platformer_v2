@@ -61,6 +61,7 @@ class MainGame : Game
     public void Reset()
     {
         CurrentMap.Reload();
+        Entity.AddEntity(new MovingBlock(new Point2(0,8 * Map.TileUnit), new Size(2 * Map.TileUnit, 2 * Map.TileUnit)));
     }
 
     public Player Player { get; set; }
@@ -88,9 +89,9 @@ class MainGame : Game
 
         Player.PlayerTexture = Assets.LoadTexture("Player");
 
-        Map.ConvertToBinary("map3.txt", "bin_map3.bin");
-        CurrentMap = new Map("bin_map3", this);
-
+        Map.ConvertToBinary("map1.txt", "bin_map1.bin");
+        CurrentMap = new Map("bin_map1", this);
+        
         State = GameState.Game;
     }
 
