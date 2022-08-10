@@ -83,33 +83,37 @@ partial class Player : Entity
 
         //if (hitbox.Y > 1000) Death();
     }
-
+    
+    private bool stillPressingJump = false;
     private void Controls()
     {
         direction = -Convert.ToSByte(Input.IsKeyDown(Keys.A)) + Convert.ToSByte(Input.IsKeyDown(Keys.D));
         oldDirection = direction;
         shooting = false;
-
+        
         if (Input.IsKeyDown(Keys.W))
         {
             void jumping()
             {
-                if (isTouchingGround)
+                if (isTouchingGround || isTouchingWall)
                 {
-                    velocity.Y = -jumpVel;
-                    isTouchingGround = false;
+                    stillPressingJump = true;
                     isJumping = true;
-                }
 
-                if (isTouchingWall)
-                {
-                    isTouchingWall = false;
-                    isJumping = true;
-                    velocity = wallJumpVelocity * new Vector2(touchingWallNormal, 1);
+                    if (isTouchingGround)
+                    {
+                        velocity.Y = -jumpVel;
+                        isTouchingGround = false;
+                    }
+                    if (isTouchingWall)
+                    {
+                        velocity = wallJumpVelocity * new Vector2(touchingWallNormal, 1);
+                        isTouchingWall = false;
+                    }
                 }
             }
 
-            if (preJumpTimer < preJumpLimit)
+            if (preJumpTimer < preJumpLimit && !stillPressingJump)
             {
                 jumping();
             }
@@ -117,7 +121,10 @@ partial class Player : Entity
             preJumpTimer += Game.Delta;
         }
         else
+        {
             preJumpTimer = 0;
+            stillPressingJump = false;
+        }
 
         if (Input.LBPressed() && bullet)
         {

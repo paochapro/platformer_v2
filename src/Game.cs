@@ -211,6 +211,12 @@ class MainGame : Game
             
             spriteBatch.DrawString(UI.Font, "Ents count: " + Entity.Count.ToString(), camera.Position, Color.Red);
             spriteBatch.DrawString(UI.Font, "Touching ground: " + Player.isTouchingGround, camera.Position + new Vector2(0, 30), Color.Red);
+            
+            foreach (Vector2 dir in BulletImpact.launchDirections)
+            {
+                Vector2 startPoint = new Vector2(60, 60);
+                spriteBatch.DrawLine(startPoint , dir * 20 + startPoint, Color.Red);
+            }
 
             return;
         }

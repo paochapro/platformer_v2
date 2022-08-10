@@ -54,6 +54,36 @@ class BulletImpact : Interactable
 
     private const float MaxImpactSpeed = 1200f;
     private const float MinImpactSpeed = 1000f - Radius;
+    
+    //should be private
+    public static readonly Vector2[] launchDirections =
+    {
+        //90
+        -Vector2.UnitY, //Up
+        Vector2.UnitY, //Down
+        -Vector2.UnitX, //Left
+        Vector2.UnitX, //Right
+        //45
+        new(-1, -1), //Up-Left
+        new(1, -1), //Up-Right
+        new(-1, 1), //Down-Left
+        new(1, 1), //Down-Right
+        //22,5 - Top, Bottom
+        new(-0.5f, -1), //Up-Left
+        new(0.5f, -1), //Up-Right
+        new(-0.5f, 1), //Down-Left
+        new(0.5f, 1), //Down-Right
+        //22,5 - Left, Right
+        new(-1, -0.5f), //Up-Left
+        new(-1, 0.5f), //Up-Right
+        new(1, -0.5f), //Down-Left
+        new(1, 0.5f), //Down-Right
+    };
+
+    static BulletImpact()
+    {
+        launchDirections = launchDirections.Select(dir => dir.NormalizedCopy()).ToArray();
+    }
 
     public Point2 Origin { get; private set; }
     
@@ -83,13 +113,22 @@ class BulletImpact : Interactable
 
     protected override void OnPlayerTouch(Player player)
     {
-        Vector2 diff = player.Hitbox.Center - Origin;
-        Vector2 launchDirection = diff.NormalizedCopy();
+        Vector2 launchDirection = Vector2.Zero;
+        Vector2 diff = (player.Hitbox.Center - Origin).NormalizedCopy();
+        
+        var dotProducts = launchDirections.Select(dir => Vector2.Dot(dir, diff));
+        var pairs = launchDirections.Zip(dotProducts);
+        
+        float max = dotProducts.Max();
+        foreach (var pair in pairs)
+            if (pair.Second == max)
+                launchDirection = pair.First;
 
+        Console.WriteLine("launchDirection: " + launchDirection);
+
+        //launch speed
         float distance = diff.Length();
-
         float value = inverseLerp(MinPlayerDistance, MaxPlayerDistance, distance);
-
         float launchSpeed = lerp(MaxImpactSpeed, MinImpactSpeed, value);
 
         // Console.WriteLine("value:" + value);
