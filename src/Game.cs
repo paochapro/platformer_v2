@@ -61,7 +61,6 @@ class MainGame : Game
     public void Reset()
     {
         CurrentMap.Reload();
-        Entity.AddEntity(new MovingBlock(new Point2(0,8 * Map.TileUnit), new Size(2 * Map.TileUnit, 2 * Map.TileUnit)));
     }
 
     public Player Player { get; set; }

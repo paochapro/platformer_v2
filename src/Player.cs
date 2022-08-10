@@ -31,6 +31,7 @@ partial class Player : Entity
     private readonly Vector2 wallJumpVelocity = new(jumpVel * 0.7f, -jumpVel * 0.8f);
     private const float preJumpLimit = 0.15f;
     private float preJumpTimer;
+    private RectangleF oldHitbox;
 
     public bool isTouchingGround { get; private set; }
     public bool isTouchingWall { get; private set; }
@@ -70,14 +71,17 @@ partial class Player : Entity
 
     protected override void Update(GameTime gameTime)
     {
+        oldHitbox = hitbox;
+        
         Controls();
         CollisionAndMovement();
         CheckInteractables();
         CheckRooms();
+        CameraScroll();
         
         currentColor = bullet ? havebulletColor : nobulletColor;
 
-        if (hitbox.Y > 1000) Death();
+        //if (hitbox.Y > 1000) Death();
     }
 
     private void Controls()
@@ -137,16 +141,18 @@ partial class Player : Entity
     private void CollisionAndMovement()
     {
         Map map = Game.CurrentMap;
-        var collideables = map.Walls.Select(w => (RectangleF)w).Union(map.Solids.Select(s => s.SolidHitbox)).ToList();
-        
+        var solids = map.Solids;
+        var semiSolids = map.SemiSolids;
+
         //Y
         MovementY();
         
         isTouchingGround = false;
         hitbox.Y += velocity.Y * Game.Delta;
 
-        collideables.ForEach(c => CollisionY(c));
-
+        foreach (RectangleF solid in solids) CollisionY(solid);
+        foreach (RectangleF semiSolid in semiSolids) SemiSolidCollision(semiSolid);
+        
         //X
         MovementX();
         
@@ -154,7 +160,7 @@ partial class Player : Entity
         touchingWallNormal = 0;
         hitbox.X += velocity.X * Game.Delta;
 
-        collideables.ForEach(c => CollisionX(c));
+        foreach (RectangleF solid in solids) CollisionX(solid);
     }
 
     private void MovementY()
@@ -265,6 +271,22 @@ partial class Player : Entity
 
         return collided;
     }
+    
+    private bool SemiSolidCollision(RectangleF rect)
+    {
+        if(hitbox.Intersects(rect) && oldHitbox.Bottom <= rect.Y)
+        {
+            hitbox.Y = rect.Y - hitbox.Height;
+            isTouchingGround = true;
+            isJumping = false;
+            velocity.Y = 0;
+            if(!shooting) bullet = true;
+
+            return true;
+        }
+
+        return false;
+    }
 
     //Other
     private void CheckRooms()
@@ -284,5 +306,37 @@ partial class Player : Entity
     private void CheckInteractables()
     {
         Interactable.Iterate(i => i.TouchesPlayer(this));
+    }
+
+    private void CameraScroll()
+    {
+        //X
+        /*int cameraHalfWidth = (int)Math.Round(Game.camera.BoundingRectangle.Width) / 2;
+        int centerX = ((Rectangle)hitbox).Center.X;
+        
+        Rectangle roomRect = Game.CurrentMap.CurrentRoomRectangle;
+        int leftBorder = roomRect.Left + cameraHalfWidth;
+        int rightBorder = roomRect.Right - cameraHalfWidth;
+        
+        int cameraCenter = clamp(centerX, leftBorder, rightBorder);
+        
+        Game.camera.Position = Game.camera.Position with { X = cameraCenter - cameraHalfWidth };*/
+
+        Size2 cameraSize = Game.camera.BoundingRectangle.Size;
+        Size cameraHalfSize = new((int)Math.Round(cameraSize.Width) / 2, (int)Math.Round(cameraSize.Height) / 2);
+        
+        Point center = ((Rectangle)hitbox).Center;
+        
+        Rectangle roomRect = Game.CurrentMap.CurrentRoomRectangle;
+        int leftBorder = roomRect.Left + cameraHalfSize.Width;
+        int rightBorder = roomRect.Right - cameraHalfSize.Width;
+        int topBorder = roomRect.Top + cameraHalfSize.Height;
+        int bottomBorder = roomRect.Bottom - cameraHalfSize.Height;
+
+        Point cameraCenter = Point.Zero;
+        cameraCenter.X = clamp(center.X, leftBorder, rightBorder);
+        cameraCenter.Y = clamp(center.Y, topBorder, bottomBorder);
+
+        Game.camera.Position = (cameraCenter - (Point)cameraHalfSize).ToVector2();
     }
 }

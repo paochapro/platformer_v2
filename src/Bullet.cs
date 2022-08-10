@@ -37,8 +37,8 @@ class Bullet : Entity
     
     private bool Collision()
     {
-        foreach (Rectangle wall in Game.CurrentMap.Walls)
-            if (hitbox.Intersects(wall))
+        foreach (RectangleF solid in Game.CurrentMap.Solids)
+            if (hitbox.Intersects(solid))
                 return true;
 
         return false;
