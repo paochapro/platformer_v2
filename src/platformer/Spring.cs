@@ -1,9 +1,12 @@
-using System;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using MonoGame.Extended;
+using Lib;
+using static Lib.Utils;
 
-namespace PlatformerV2;
+using PlatformerV2.Base;
+
+namespace PlatformerV2.Main;
 
 class Spring : Interactable, ISolid
 {

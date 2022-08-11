@@ -2,8 +2,10 @@ using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using MonoGame.Extended;
 
-namespace PlatformerV2;
-using static Utils;
+using Lib;
+
+namespace PlatformerV2.Main;
+using static Lib.Utils;
 
 class Bonus : Interactable
 {

@@ -1,8 +1,8 @@
 ﻿using Microsoft.Xna.Framework.Graphics;
 
-using static PlatformerV2.Utils;
+using static Lib.Utils;
 
-namespace PlatformerV2;
+namespace Lib;
 
 static class Assets
 {

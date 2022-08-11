@@ -2,8 +2,11 @@
 using Microsoft.Xna.Framework.Graphics;
 using MonoGame.Extended;
 
-namespace PlatformerV2;
-using static Utils;
+using Lib;
+using static Lib.Utils;
+using PlatformerV2.Base;
+
+namespace PlatformerV2.Main;
 
 class Map
 {
@@ -124,7 +127,7 @@ class Map
 
         //Room stuff
         Room room = rooms[index];
-        game.camera.Position = room.rectangle.Location.ToVector2() * TileUnit;
+        platformer.Camera.Position = room.rectangle.Location.ToVector2() * TileUnit;
         
         //Loading entities of this room
         var spawnEntity = ((Type type, Point2 position) spawn) => Activator.CreateInstance(spawn.type, spawn.position) as Entity;

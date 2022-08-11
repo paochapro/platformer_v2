@@ -2,7 +2,10 @@
 using Microsoft.Xna.Framework.Graphics;
 using MonoGame.Extended;
 
-namespace PlatformerV2;
+using PlatformerV2.Base;
+using PlatformerV2.Main;
+
+namespace Lib;
 
 //Static
 abstract partial class Entity

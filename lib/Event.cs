@@ -1,6 +1,6 @@
 ﻿using Microsoft.Xna.Framework;
 
-namespace PlatformerV2;
+namespace Lib;
 
 //Events
 internal class Event

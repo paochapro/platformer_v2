@@ -1,6 +1,6 @@
 ﻿using Microsoft.Xna.Framework;
 
-namespace PlatformerV2;
+namespace PlatformerV2.Main;
 
 interface IMovingSolid : ISolid
 {

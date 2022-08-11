@@ -2,7 +2,7 @@
 using Microsoft.Xna.Framework.Graphics;
 using MonoGame.Extended;
 
-namespace PlatformerV2;
+namespace Lib;
 using static Utils;
 
 class ParticleEmitter : Entity

@@ -2,8 +2,11 @@
 using Microsoft.Xna.Framework.Graphics;
 using MonoGame.Extended;
 
-namespace PlatformerV2;
-using static Utils;
+using Lib;
+using static Lib.Utils;
+using PlatformerV2.Base;
+
+namespace PlatformerV2.Main;
 
 class Bullet : Entity
 {

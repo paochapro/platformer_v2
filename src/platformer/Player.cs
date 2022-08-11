@@ -3,8 +3,11 @@ using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using MonoGame.Extended;
 
-namespace PlatformerV2;
-using static Utils;
+using Lib;
+using static Lib.Utils;
+using PlatformerV2.Base;
+
+namespace PlatformerV2.Main;
 
 partial class Player : Entity
 {
@@ -131,7 +134,7 @@ partial class Player : Entity
         //TODO: double shot bug
         if (Input.LBPressed() && bullet)
         {
-            Vector2 mousePos = Input.Mouse.Position.ToVector2() + Game.camera.Position;
+            Vector2 mousePos = Input.Mouse.Position.ToVector2() + Platformer.Camera.Position;
             Vector2 diff = mousePos - (Vector2)hitbox.Center;
             Vector2 bulletDir = diff.NormalizedCopy();
             
@@ -145,7 +148,7 @@ partial class Player : Entity
 
         if (MainGame.DebugMode && Input.RBPressed())
         {
-            hitbox.Position = Input.Mouse.Position.ToVector2() + Game.camera.Position;
+            hitbox.Position = Input.Mouse.Position.ToVector2() + Platformer.Camera.Position;
         }
     }
 
@@ -323,7 +326,7 @@ partial class Player : Entity
     private void CameraScroll()
     {
         //X
-        /*int cameraHalfWidth = (int)Math.Round(Game.camera.BoundingRectangle.Width) / 2;
+        /*int cameraHalfWidth = (int)Math.Round(Game.Camera.BoundingRectangle.Width) / 2;
         int centerX = ((Rectangle)hitbox).Center.X;
         
         Rectangle roomRect = Game.CurrentMap.CurrentRoomRectangle;
@@ -332,9 +335,9 @@ partial class Player : Entity
         
         int cameraCenter = clamp(centerX, leftBorder, rightBorder);
         
-        Game.camera.Position = Game.camera.Position with { X = cameraCenter - cameraHalfWidth };*/
+        Game.Camera.Position = Game.Camera.Position with { X = cameraCenter - cameraHalfWidth };*/
 
-        Size2 cameraSize = Game.camera.BoundingRectangle.Size;
+        Size2 cameraSize = Platformer.Camera.BoundingRectangle.Size;
         Size cameraHalfSize = new((int)Math.Round(cameraSize.Width) / 2, (int)Math.Round(cameraSize.Height) / 2);
         
         Point center = ((Rectangle)hitbox).Center;
@@ -349,6 +352,6 @@ partial class Player : Entity
         cameraCenter.X = clamp(center.X, leftBorder, rightBorder);
         cameraCenter.Y = clamp(center.Y, topBorder, bottomBorder);
 
-        Game.camera.Position = (cameraCenter - (Point)cameraHalfSize).ToVector2();
+        Platformer.Camera.Position = (cameraCenter - (Point)cameraHalfSize).ToVector2();
     }
 }

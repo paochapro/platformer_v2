@@ -5,8 +5,11 @@ using Microsoft.Xna.Framework.Audio;
 using MonoGame.Extended;
 using MonoGame.Extended.Screens;
 
-namespace PlatformerV2;
-using static Utils;
+using PlatformerV2.Base;
+using Lib;
+using static Lib.Utils;
+
+namespace PlatformerV2.Main;
 
 class Platformer : GameScreen
 {
@@ -16,6 +19,8 @@ class Platformer : GameScreen
     //Main
     public Map CurrentMap { get; private set; }
     public Player Player { get; set; }
+
+    public OrthographicCamera Camera { get; set; }
 
     private bool drawGrid;
     private bool drawRooms;
@@ -38,7 +43,10 @@ class Platformer : GameScreen
     {
         var spriteBatch = Game.SpriteBatch;
         var screen = Game.Screen;
-
+        
+        Game.GraphicsDevice.Clear(Color.White);
+        
+        spriteBatch.Begin(transformMatrix: Camera.GetViewMatrix());
         
         void drawMainElements()
         {
@@ -62,8 +70,8 @@ class Platformer : GameScreen
                 }
             }
             
-            spriteBatch.DrawString(UI.Font, "Ents count: " + Entity.Count.ToString(), Game.camera.Position, Color.Red);
-            spriteBatch.DrawString(UI.Font, "Touching ground: " + Player.isTouchingGround, Game.camera.Position + new Vector2(0, 30), Color.Red);
+            spriteBatch.DrawString(UI.Font, "Ents count: " + Entity.Count.ToString(), Camera.Position, Color.Red);
+            spriteBatch.DrawString(UI.Font, "Touching ground: " + Player.isTouchingGround, Camera.Position + new Vector2(0, 30), Color.Red);
             
             foreach (Vector2 dir in BulletImpact.launchDirections)
             {
@@ -79,8 +87,6 @@ class Platformer : GameScreen
     
     private void Controls()
     {
-        var camera = Game.camera;
-
         if (MainGame.DebugMode)
         {
             if (Input.KeyPressed(Keys.D1))
@@ -96,18 +102,18 @@ class Platformer : GameScreen
             if (Input.KeyPressed(Keys.D4)) drawRooms = !drawRooms;
 
             float zoom = Input.Mouse.ScrollWheelValue / 2000f + 1f;
-            camera.Zoom = clamp(zoom, camera.MinimumZoom, camera.MaximumZoom);
+            Camera.Zoom = clamp(zoom, Camera.MinimumZoom, Camera.MaximumZoom);
 
             if (Input.Mouse.MiddleButton == ButtonState.Pressed)
             {
                 if (!startMoving)
                 {
                     startingPoint = Input.Mouse.Position.ToVector2();
-                    startingCamera = camera.Position;
+                    startingCamera = Camera.Position;
                 }
 
                 endPoint = Input.Mouse.Position.ToVector2();
-                camera.Position = startingCamera - (endPoint - startingPoint);
+                Camera.Position = startingCamera - (endPoint - startingPoint);
 
                 startMoving = true;
             }
@@ -143,9 +149,8 @@ class Platformer : GameScreen
     public override void Initialize()
     {
         Entity.RemoveAll();
-        Event.ClearEvents();
-        UI.Clear();
         Entity.Platformer = this;
+        Camera = new OrthographicCamera(Game.GraphicsDevice);
     }
 
     //UI

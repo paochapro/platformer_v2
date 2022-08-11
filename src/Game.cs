@@ -5,8 +5,12 @@ using Microsoft.Xna.Framework.Audio;
 using MonoGame.Extended;
 using MonoGame.Extended.Screens;
 
-namespace PlatformerV2;
-using static Utils;
+using Lib;
+using PlatformerV2.LevelEditor;
+using PlatformerV2.Main;
+using static Lib.Utils;
+
+namespace PlatformerV2.Base;
 
 class MainGame : Game
 {
@@ -26,9 +30,10 @@ class MainGame : Game
     
     //General stuff
     public SpriteBatch SpriteBatch => spriteBatch;
+    public GraphicsDeviceManager Graphics => graphics;
     private SpriteBatch spriteBatch;
     private GraphicsDeviceManager graphics;
-    public OrthographicCamera camera { get; set; }
+    private OrthographicCamera Camera { get; set; }
 
     public enum GameState { Menu, Game, Editor }
 
@@ -47,7 +52,7 @@ class MainGame : Game
     public static bool DebugMode { get; private set; } = true;
 
     //Initialization
-    private void ChangeScreenSize(Point size)
+    public void ChangeScreenSize(Point size)
     {
         screen = size;
         graphics.PreferredBackBufferWidth = size.X;
@@ -59,7 +64,7 @@ class MainGame : Game
     {
         Event.ClearEvents();
         UI.Clear();
-        camera = new OrthographicCamera(GraphicsDevice);
+        Camera = new OrthographicCamera(GraphicsDevice);
         screenManager.LoadScreen(screen);
     }
     
@@ -77,7 +82,7 @@ class MainGame : Game
 
         State = GameState.Game;
         
-        LoadScreen(new Platformer(this));
+        LoadScreen(new Editor(this));
     }
     
     protected override void Initialize()
@@ -87,7 +92,7 @@ class MainGame : Game
         screen = DefaultScreenSize;
         SoundEffect.MasterVolume = DefaultVolume;
         IsMouseVisible = true;
-        camera = new OrthographicCamera(GraphicsDevice);
+        Camera = new OrthographicCamera(GraphicsDevice);
 
         Entity.Game = this;
         
@@ -114,15 +119,7 @@ class MainGame : Game
     
     protected override void Draw(GameTime gameTime)
     {
-        graphics.GraphicsDevice.Clear(Color.White);
-        
-        spriteBatch.Begin(transformMatrix: camera.GetViewMatrix());
-        {
-            screenManager.Draw(gameTime);
-            UI.DrawElements(spriteBatch);
-        }
-        spriteBatch.End();
-
+        screenManager.Draw(gameTime);
         base.Draw(gameTime);
     }
 

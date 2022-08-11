@@ -1,6 +1,6 @@
 ﻿using Microsoft.Xna.Framework.Input;
 
-namespace PlatformerV2;
+namespace Lib;
 
 static class Input
 {

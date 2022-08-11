@@ -4,9 +4,9 @@ using Microsoft.Xna.Framework.Input;
 using MonoGame.Extended;
 using System.Text;
 
-using static PlatformerV2.Utils;
+using static Lib.Utils;
 
-namespace PlatformerV2;
+namespace Lib;
 
 //Static
 abstract partial class UI

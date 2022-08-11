@@ -1,9 +1,11 @@
-using System;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using MonoGame.Extended;
 
-namespace PlatformerV2;
+using Lib;
+using static Lib.Utils;
+
+namespace PlatformerV2.Main;
 
 abstract class Interactable : Entity
 {

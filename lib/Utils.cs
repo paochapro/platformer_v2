@@ -1,7 +1,7 @@
 ﻿using Microsoft.Xna.Framework;
 using MonoGame.Extended;
 
-namespace PlatformerV2;
+namespace Lib;
 
 internal static class Utils
 {
