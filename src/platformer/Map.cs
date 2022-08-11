@@ -9,6 +9,8 @@ class Map
 {
     //General
     private MainGame game;
+    private Platformer platformer;
+    
     public const int TileUnit = 32;
     public const string MapExtension = ".bin";
     public const string MapDirectory = "Content/maps/";
@@ -71,7 +73,7 @@ class Map
         Entity.RemoveAll();
         
         LoadMap(mapName);
-        game.CreatePlayer();
+        platformer.CreatePlayer();
         LoadRoom(0);
     }
     
@@ -98,9 +100,10 @@ class Map
         [Tile.MovingBlock] = typeof(MovingBlock),
     };
 
-    public Map(string filename, MainGame game)
+    public Map(string filename, Platformer platformer)
     {
-        this.game = game;
+        this.platformer = platformer;
+        this.game = platformer.Game;
         mapName = filename;
         Reload();
     }
@@ -159,7 +162,7 @@ class Map
                     Point pos = (new Point(x,y) + roomPos) * new Point(Map.TileUnit);
                     if(tile == Tile.None) continue;
 
-                    if(tile == Tile.Spawn)              game.spawn = pos;
+                    if(tile == Tile.Spawn)              platformer.spawn = pos;
                     else if (tile == Tile.Wall)         wallPositions.Add(pos);
                     else if (tile == Tile.SemiSolid)    loadedSemiSolids.Add(pos);
                     else

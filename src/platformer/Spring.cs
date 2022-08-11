@@ -13,11 +13,11 @@ class Spring : Interactable, ISolid
     private const int width = Map.TileUnit; //32
     private const float LaunchForce = 1100f;
 
-    private readonly static Size2 activateSize = new(width-2, 2);
-    private readonly static Size2 pressedActivateSize = new(width, 2);
+    private static readonly Size2 activateSize = new(width-2, 2);
+    private static readonly Size2 pressedActivateSize = new(width, 2);
     
-    private readonly static Size2 launchSize = new(width,1);
-    private readonly static Size2 solidSize = new(width,48);
+    private static readonly Size2 launchSize = new(width,1);
+    private static readonly Size2 solidSize = new(width,48);
 
     public static Texture2D springTexture;
     private bool ready;

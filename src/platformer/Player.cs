@@ -55,7 +55,7 @@ partial class Player : Entity
     {
         velocity = Vector2.Zero;
         hitbox.Position = spawn;
-        Game.Reset();
+        Platformer.Reset();
     }
 
     protected override void Draw(SpriteBatch spriteBatch)
@@ -104,7 +104,9 @@ partial class Player : Entity
                     {
                         velocity.Y = -jumpVel;
                         isTouchingGround = false;
+                        return;
                     }
+                    
                     if (isTouchingWall)
                     {
                         velocity = wallJumpVelocity * new Vector2(touchingWallNormal, 1);
@@ -126,6 +128,7 @@ partial class Player : Entity
             stillPressingJump = false;
         }
 
+        //TODO: double shot bug
         if (Input.LBPressed() && bullet)
         {
             Vector2 mousePos = Input.Mouse.Position.ToVector2() + Game.camera.Position;
@@ -133,6 +136,8 @@ partial class Player : Entity
             Vector2 bulletDir = diff.NormalizedCopy();
             
             Entity.AddEntity(new Bullet(hitbox.Center, bulletDir));
+
+            Console.WriteLine("Shot");
             
             bullet = false;
             shooting = true;
@@ -147,7 +152,7 @@ partial class Player : Entity
     //Collision and movement
     private void CollisionAndMovement()
     {
-        Map map = Game.CurrentMap;
+        Map map = Platformer.CurrentMap;
         var solids = map.Solids;
         var semiSolids = map.SemiSolids;
 
@@ -172,7 +177,7 @@ partial class Player : Entity
 
     private void MovementY()
     {
-        if (isTouchingWall && direction == -touchingWallNormal && velocity.Y > wallSlide) 
+        if (isTouchingWall && direction == -touchingWallNormal && velocity.Y > wallSlide)
             velocity.Y = wallSlide;
         else
             velocity.Y += gravity * Game.Delta;
@@ -240,19 +245,19 @@ partial class Player : Entity
         if(hitbox.Intersects(rect))
         {
             hitbox.X = (float)Math.Round(hitbox.X);
-            
+
             hitbox.X = velocity.X > 0   
                 ? rect.X - hitbox.Width
                 : rect.X + hitbox.Width;
             
             velocity.X = 0;
 
-            isTouchingWall = true;
-            touchingWallNormal = -Math.Sign(velocity.X);
+            //isTouchingWall = true;
+            //touchingWallNormal = -Math.Sign(velocity.X);
 
             collided = true;
         }
-        
+
         //Wall jumping
         RectangleF rightHitbox = hitbox with { X = hitbox.X + 1};
         RectangleF leftHitbox = hitbox with { X = hitbox.X - 1};
@@ -298,7 +303,7 @@ partial class Player : Entity
     //Other
     private void CheckRooms()
     {
-        Map map = Game.CurrentMap;
+        Map map = Platformer.CurrentMap;
         int index = 0;
             
         foreach (Rectangle roomRectangle in map.RoomRectangles)
@@ -334,7 +339,7 @@ partial class Player : Entity
         
         Point center = ((Rectangle)hitbox).Center;
         
-        Rectangle roomRect = Game.CurrentMap.CurrentRoomRectangle;
+        Rectangle roomRect = Platformer.CurrentMap.CurrentRoomRectangle;
         int leftBorder = roomRect.Left + cameraHalfSize.Width;
         int rightBorder = roomRect.Right - cameraHalfSize.Width;
         int topBorder = roomRect.Top + cameraHalfSize.Height;

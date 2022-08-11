@@ -8,16 +8,25 @@ using static PlatformerV2.Utils;
 
 namespace PlatformerV2;
 
-//Ui
-abstract class UI
+//Static
+abstract partial class UI
 {
-    //Static
     private static List<UI> elements = new();
     private static bool clicking;
     public static bool Clicking => clicking;
     public static int CurrentLayer { get; set; }
     public static GameWindow window;
     public static SpriteFont Font { get; set; }
+    
+    //Main colors
+    public static Color MainDefaultColor { get; set; } = Color.Black;
+    public static Color MainSelectedColor { get; set; } = Color.Gold;
+    public static Color MainLockedColor { get; set; } = Color.Gray;
+
+    //Bg colors
+    public static Color BgDefaultColor { get; set; } = Color.White;
+    public static Color BgSelectedColor { get; set; } = new Color(Color.Yellow, 50);
+    public static Color BgLockedColor { get; set; } = Color.DarkGray;
     
     public static void UpdateElements(KeyboardState keys, MouseState mouse)
     {
@@ -40,18 +49,16 @@ abstract class UI
         elements.Add(elem);
         return elem;
     }
-    
-    //Main colors
-    public static Color MainDefaultColor { get; set; } = Color.Black;
-    public static Color MainSelectedColor { get; set; } = Color.Gold;
-    public static Color MainLockedColor { get; set; } = Color.Gray;
+    public static void Clear()
+    {
+        CurrentLayer = 0;
+        elements.Clear();
+    }
+}
 
-    //Bg colors
-    public static Color BgDefaultColor { get; set; } = Color.White;
-    public static Color BgSelectedColor { get; set; } = new Color(Color.Yellow, 50);
-    public static Color BgLockedColor { get; set; } = Color.DarkGray;
-    
-    //Element
+//Element
+abstract partial class UI
+{
     public Rectangle rect = Rectangle.Empty;
     protected Color mainColor = Color.Purple;
     protected Color bgColor = Color.Purple;

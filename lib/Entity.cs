@@ -8,6 +8,8 @@ namespace PlatformerV2;
 abstract partial class Entity
 {
     public static MainGame Game { get; set; }
+    public static Platformer Platformer { get; set; }
+    
     private static List<Entity> ents = new();
     private static int updatePosition = 0;
     public static int Count => ents.Count;
@@ -33,6 +35,8 @@ abstract partial class Entity
     {
         void removing()
         {
+            ent.destroyed = true;
+            
             //Removing from entities
             //If entity was updated, update position should be lowered
             if(ents.IndexOf(ent) <= updatePosition) --updatePosition;
@@ -40,7 +44,7 @@ abstract partial class Entity
 
             if (!ents.Remove(ent))
             {
-                throw new Exception("Entity wasnt found in ents when removing - Entity/RemoveEntity");
+                throw new Exception($"Entity {ent} wasnt found in ents when removing - Entity/RemoveEntity");
             }
         }
 
@@ -93,8 +97,6 @@ abstract partial class Entity : ICloneable
     public void Destroy()
     {
         if (destroyed) return;
-        destroyed = true;
-
         RemoveEntity(this);
     }
 }

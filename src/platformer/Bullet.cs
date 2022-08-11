@@ -37,7 +37,7 @@ class Bullet : Entity
     
     private bool Collision()
     {
-        foreach (RectangleF solid in Game.CurrentMap.Solids)
+        foreach (RectangleF solid in Platformer.CurrentMap.Solids)
             if (hitbox.Intersects(solid))
                 return true;
 
@@ -52,8 +52,8 @@ class BulletImpact : Interactable
     private const float MaxPlayerDistance = Radius;
     private const float MinPlayerDistance = 20f;
 
-    private const float MaxImpactSpeed = 1200f;
-    private const float MinImpactSpeed = 1000f - Radius;
+    private const float MaxImpactSpeed = 1000f; //1200
+    private const float MinImpactSpeed = 800f - Radius; //1000
     
     //should be private
     public static readonly Vector2[] launchDirections =

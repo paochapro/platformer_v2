@@ -3,32 +3,34 @@ using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using Microsoft.Xna.Framework.Audio;
 using MonoGame.Extended;
+using MonoGame.Extended.Screens;
 
 namespace PlatformerV2;
 using static Utils;
 
-//////////////////////////////// Starting point
 class MainGame : Game
 {
     //More important stuff
     private const string GameName = "PlatformerV2";
     private const float DefaultVolume = 0.3f;
     private const bool Resizable = false;
-    private readonly Point DefaultScreenSize = new(1400, 1000); //computer (1400, 1000) / notebook (1400, 800)
+    
+    //most common   - 1920x1056 (60x33 blocks by 32)
+    //my computer   - 1680x924  (60x33 blocks by 28)
+    private readonly Point DefaultScreenSize = new(1680, 924); //notebook (1400, 800)
     
     public Point Screen => screen;
     private Point screen;
     
-    //General stuff
-    public GraphicsDeviceManager Graphics => graphics;
-    private GraphicsDeviceManager graphics;
-    private SpriteBatch spriteBatch;
-    public OrthographicCamera camera { get; set; }
+    private ScreenManager screenManager;
     
-    private readonly Dictionary<GameState, Action> drawMethods;
-    private readonly Dictionary<GameState, Action<GameTime>> updateMethods;
+    //General stuff
+    public SpriteBatch SpriteBatch => spriteBatch;
+    private SpriteBatch spriteBatch;
+    private GraphicsDeviceManager graphics;
+    public OrthographicCamera camera { get; set; }
 
-    public enum GameState { Menu, Game }
+    public enum GameState { Menu, Game, Editor }
 
     private GameState gameState;
     public GameState State
@@ -41,14 +43,9 @@ class MainGame : Game
         }
     }
     
-    public static bool DebugMode { get; private set; } = true;
-    private bool PlayerInvincible { get; set; } = false;
     public float Delta { get; private set; }
-    
-    //Game
-    public Map CurrentMap { get; private set; }
-    public Point spawn;
-    
+    public static bool DebugMode { get; private set; } = true;
+
     //Initialization
     private void ChangeScreenSize(Point size)
     {
@@ -57,21 +54,15 @@ class MainGame : Game
         graphics.PreferredBackBufferHeight = size.Y;
         graphics.ApplyChanges();
     }
-
-    public void Reset()
+    
+    private void LoadScreen(GameScreen screen)
     {
-        CurrentMap.Reload();
+        Event.ClearEvents();
+        UI.Clear();
+        camera = new OrthographicCamera(GraphicsDevice);
+        screenManager.LoadScreen(screen);
     }
-
-    public Player Player { get; set; }
-
-    public void CreatePlayer()
-    {
-        Player player = new Player(spawn);
-        Entity.AddEntity(player);
-        Player = player;
-    }
-
+    
     protected override void LoadContent()
     {
         spriteBatch = new SpriteBatch(GraphicsDevice);
@@ -84,186 +75,78 @@ class MainGame : Game
         UI.BgSelectedColor = Color.Black;
         UI.MainDefaultColor = Color.White;
 
-        CreateUi();
-
-        Player.PlayerTexture = Assets.LoadTexture("Player");
-
-        Map.ConvertToBinary("map1.txt", "bin_map1.bin");
-        CurrentMap = new Map("bin_map1", this);
-        
         State = GameState.Game;
+        
+        LoadScreen(new Platformer(this));
     }
-
+    
     protected override void Initialize()
     {
         Window.AllowUserResizing = Resizable;
         Window.Title = GameName;
+        screen = DefaultScreenSize;
+        SoundEffect.MasterVolume = DefaultVolume;
         IsMouseVisible = true;
         camera = new OrthographicCamera(GraphicsDevice);
-        screen = DefaultScreenSize;
 
         Entity.Game = this;
         
         ChangeScreenSize(DefaultScreenSize);
-
-        SoundEffect.MasterVolume = DefaultVolume;
         
         base.Initialize();
     }
     
     //Main
-    private void UpdateGame(GameTime gameTime)
-    {
-        Delta = (float)gameTime.ElapsedGameTime.TotalSeconds;
-        Entity.UpdateAll(gameTime);
-        Controls();
-    }
-    
-    private void UpdateMenu(GameTime gameTime)
-    {
-        
-    }
-
     protected override void Update(GameTime gameTime)
     {
-        //Exit
-        if (Input.IsKeyDown(Keys.Escape)) Exit();
-
+        Delta = (float)gameTime.ElapsedGameTime.TotalSeconds;
+        
+        Controls();
+        
         UI.UpdateElements(Input.Keys, Input.Mouse);
         Event.ExecuteEvents(gameTime);
-        updateMethods[gameState].Invoke(gameTime);
+        
+        screenManager.Update(gameTime);
+        
         Input.CycleEnd();
-
         base.Update(gameTime);
     }
-
-    private bool drawGrid;
-    private bool drawRooms;
-    private void Controls()
-    {
-        if (Input.KeyPressed(Keys.OemTilde)) 
-            DebugMode = !DebugMode;
-        
-        if (DebugMode)
-        {
-            if (Input.KeyPressed(Keys.D1))
-            {
-                PlayerInvincible = !PlayerInvincible;
-                Console.WriteLine("Players is " + (PlayerInvincible ? "" : "not ") + "invincible");  
-            }
-            
-            if (Input.KeyPressed(Keys.D2)) Player.Death();
-            
-            
-            if (Input.KeyPressed(Keys.D3)) drawGrid = !drawGrid;
-            if (Input.KeyPressed(Keys.D4)) drawRooms = !drawRooms;
-
-            float zoom = Input.Mouse.ScrollWheelValue / 2000f + 1f;
-            camera.Zoom = clamp(zoom, camera.MinimumZoom, camera.MaximumZoom);
-
-            if (Input.Mouse.MiddleButton == ButtonState.Pressed)
-            {
-                if (!startMoving)
-                {
-                    startingPoint = Input.Mouse.Position.ToVector2();
-                    startingCamera = camera.Position;
-                }
-
-                endPoint = Input.Mouse.Position.ToVector2();
-                camera.Position = startingCamera - (endPoint - startingPoint);
-
-                startMoving = true;
-            }
-            else
-                startMoving = false;
-        }
-    }
-
-    private bool startMoving;
-    private Vector2 startingPoint;
-    private Vector2 startingCamera;
-    private Vector2 endPoint;
     
-    //Draw
-    private void DrawGame()
-    {
-        void drawMainElements()
-        {
-            CurrentMap.Draw(spriteBatch);
-            Entity.DrawAll(spriteBatch);
-        }
-
-        if (DebugMode)
-        {
-            drawMainElements();
-
-            if(drawGrid)
-            {
-                for(int y = 0; y < screen.Y; y += 32)
-                {
-                    spriteBatch.DrawLine(0, y, screen.X, y, new Color(Color.Black,100));
-                }
-                for(int x = 0; x < screen.X; x += 32)
-                {
-                    spriteBatch.DrawLine(x, 0, x, screen.Y, new Color(Color.Black,100));
-                }
-            }
-            
-            spriteBatch.DrawString(UI.Font, "Ents count: " + Entity.Count.ToString(), camera.Position, Color.Red);
-            spriteBatch.DrawString(UI.Font, "Touching ground: " + Player.isTouchingGround, camera.Position + new Vector2(0, 30), Color.Red);
-            
-            foreach (Vector2 dir in BulletImpact.launchDirections)
-            {
-                Vector2 startPoint = new Vector2(60, 60);
-                spriteBatch.DrawLine(startPoint , dir * 20 + startPoint, Color.Red);
-            }
-
-            return;
-        }
-
-        drawMainElements();
-    }
-
-    private void DrawMenu()
-    {
-    }
-
-
     protected override void Draw(GameTime gameTime)
     {
         graphics.GraphicsDevice.Clear(Color.White);
         
         spriteBatch.Begin(transformMatrix: camera.GetViewMatrix());
         {
-            drawMethods[State].Invoke();
+            screenManager.Draw(gameTime);
             UI.DrawElements(spriteBatch);
         }
         spriteBatch.End();
 
         base.Draw(gameTime);
     }
-    
-    //UI
-    private void CreateUi()
+
+    private void Controls()
     {
+        if (Input.IsKeyDown(Keys.Escape)) Exit();
+
+        if (Input.KeyPressed(Keys.OemTilde)) 
+            DebugMode = !DebugMode;
+        
+        if (Input.KeyPressed(Keys.M)) 
+            LoadScreen(new Editor(this));
+        
+        if (Input.KeyPressed(Keys.N)) 
+            LoadScreen(new Platformer(this));
     }
-    
+
     public MainGame()
     {
         graphics = new GraphicsDeviceManager(this);
         Content.RootDirectory = "Content";
-        
-        updateMethods = new()
-        {
-            [GameState.Menu] = UpdateMenu,
-            [GameState.Game] = UpdateGame,
-        };
 
-        drawMethods = new()
-        {
-            [GameState.Menu] = DrawMenu,
-            [GameState.Game] = DrawGame,
-        };
+        //Screens
+        screenManager = new ScreenManager();
     }
 }
 
