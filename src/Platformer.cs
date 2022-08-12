@@ -33,10 +33,13 @@ class Platformer : GameScreen
     public Point spawn;
     private bool PlayerInvincible { get; set; } = false;
 
+    private int scrollValue;
+    
     public override void Update(GameTime gameTime)
     {
         Entity.UpdateAll(gameTime);
         Controls();
+        scrollValue += Input.Mouse.ScrollWheelValue - Input.PreviousMouse.ScrollWheelValue;
     }
 
     public override void Draw(GameTime gameTime)
@@ -47,42 +50,42 @@ class Platformer : GameScreen
         Game.GraphicsDevice.Clear(Color.White);
         
         spriteBatch.Begin(transformMatrix: Camera.GetViewMatrix());
-        
-        void drawMainElements()
         {
-            CurrentMap.Draw(spriteBatch);
-            Entity.DrawAll(spriteBatch);
-        }
-        
-        if (MainGame.DebugMode)
-        {
-            drawMainElements();
-        
-            if(drawGrid)
+            void drawMainElements()
             {
-                for(int y = 0; y < screen.Y; y += 32)
-                {
-                    spriteBatch.DrawLine(0, y, screen.X, y, new Color(Color.Black,100));
-                }
-                for(int x = 0; x < screen.X; x += 32)
-                {
-                    spriteBatch.DrawLine(x, 0, x, screen.Y, new Color(Color.Black,100));
-                }
-            }
-            
-            spriteBatch.DrawString(UI.Font, "Ents count: " + Entity.Count.ToString(), Camera.Position, Color.Red);
-            spriteBatch.DrawString(UI.Font, "Touching ground: " + Player.isTouchingGround, Camera.Position + new Vector2(0, 30), Color.Red);
-            
-            foreach (Vector2 dir in BulletImpact.launchDirections)
-            {
-                Vector2 startPoint = new Vector2(60, 60);
-                spriteBatch.DrawLine(startPoint , dir * 20 + startPoint, Color.Red);
+                CurrentMap.Draw(spriteBatch);
+                Entity.DrawAll(spriteBatch);
             }
         
-            return;
-        }
+            if (MainGame.DebugMode)
+            {
+                drawMainElements();
         
-        drawMainElements();
+                if(drawGrid)
+                {
+                    for(int y = 0; y < screen.Y; y += 32)
+                    {
+                        spriteBatch.DrawLine(0, y, screen.X, y, new Color(Color.Black,100));
+                    }
+                    for(int x = 0; x < screen.X; x += 32)
+                    {
+                        spriteBatch.DrawLine(x, 0, x, screen.Y, new Color(Color.Black,100));
+                    }
+                }
+            
+                spriteBatch.DrawString(UI.Font, "Ents count: " + Entity.Count.ToString(), Camera.Position, Color.Red);
+                spriteBatch.DrawString(UI.Font, "Touching ground: " + Player.isTouchingGround, Camera.Position + new Vector2(0, 30), Color.Red);
+            
+                foreach (Vector2 dir in BulletImpact.launchDirections)
+                {
+                    Vector2 startPoint = new Vector2(60, 60);
+                    spriteBatch.DrawLine(startPoint , dir * 20 + startPoint, Color.Red);
+                }
+            }
+            else
+                drawMainElements();   
+        }
+        spriteBatch.End();
     }
     
     private void Controls()
@@ -101,7 +104,7 @@ class Platformer : GameScreen
             if (Input.KeyPressed(Keys.D3)) drawGrid = !drawGrid;
             if (Input.KeyPressed(Keys.D4)) drawRooms = !drawRooms;
 
-            float zoom = Input.Mouse.ScrollWheelValue / 2000f + 1f;
+            float zoom = scrollValue / 2000f + 1f;
             Camera.Zoom = clamp(zoom, Camera.MinimumZoom, Camera.MaximumZoom);
 
             if (Input.Mouse.MiddleButton == ButtonState.Pressed)

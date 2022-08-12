@@ -6,8 +6,8 @@ static class Input
 {
     public static MouseState Mouse => Microsoft.Xna.Framework.Input.Mouse.GetState();
     public static KeyboardState Keys => Keyboard.GetState();
-    private static KeyboardState PreviousKeys { get; set; }
-    private static MouseState PreviousMouse { get; set; }
+    public static KeyboardState PreviousKeys { get; private set; }
+    public static MouseState PreviousMouse { get; private set; }
 
     public static void CycleEnd()
     {
@@ -18,6 +18,8 @@ static class Input
     //Mouse
     public static bool LBPressed() => Mouse.LeftButton == ButtonState.Pressed && PreviousMouse.LeftButton != ButtonState.Pressed;
     public static bool RBPressed() => Mouse.RightButton == ButtonState.Pressed && PreviousMouse.RightButton != ButtonState.Pressed;
+    public static bool LBReleased() => Mouse.LeftButton != ButtonState.Pressed && PreviousMouse.LeftButton == ButtonState.Pressed;
+    public static bool RBReleased() => Mouse.RightButton != ButtonState.Pressed && PreviousMouse.RightButton == ButtonState.Pressed;
     public static bool LBDown() => Mouse.LeftButton == ButtonState.Pressed;
     public static bool RBDown() => Mouse.RightButton == ButtonState.Pressed;
     public static bool LBUp() => Mouse.LeftButton != ButtonState.Pressed;
