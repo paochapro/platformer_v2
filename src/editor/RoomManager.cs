@@ -32,7 +32,7 @@ class RoomManager
     
     //Room selection
     private Room? selectedRoom;
-    private Point selectedPos;
+    private Rectangle selectedTransform;
     private RectangleF selectionBox;
     
     public RoomManager(Editor editor)
@@ -47,8 +47,9 @@ class RoomManager
         isConstructingRoom = false;
         constructionRoom = Rectangle.Empty;
         constructionRoomOutline = Rectangle.Empty;
-        selectedRoom = null;
         startMousePos = Point.Zero;
+        
+        ResetSelection();
     }
 
     private Rectangle ConstructRoom(Point startMouseTile, Point endMouseTile)
@@ -130,10 +131,11 @@ class RoomManager
 
     private void ResetSelection()
     {
-        selectedPos = Point.Zero;
+        selectedTransform = Rectangle.Empty;
         selectedRoom = null;
         selectionBox = RectangleF.Empty;
         startMousePos = Point.Zero;
+        gizmoSide = GizmoSide.None;
     }
     
     //Room selection
@@ -150,7 +152,7 @@ class RoomManager
                 if (room.Box.Contains(GetMouseTile(startMousePos)))
                 {
                     selectedRoom = room;
-                    selectedPos = room.Box.Location;
+                    selectedTransform = room.Box;
                 }
 
             //Selection box
@@ -160,17 +162,18 @@ class RoomManager
 
         if (selectedRoom != null)
         {
-            SelectedRoomControls(mousePos);
+            SelectedRoomControls(mousePos); 
             return;
         }
 
-        if (selectionBox != RectangleF.Empty);       
+        if (selectionBox != RectangleF.Empty);
             SelectionBoxControls(mousePos);
     }
 
     private void SelectedRoomControls(Point mousePos)
     {
         Point endMousePos = mousePos;
+        UpdateGizmos();
         
         if (Input.KeyPressed(Keys.X))
         {
@@ -181,29 +184,110 @@ class RoomManager
 
         if (Input.LBDown())
         {
-            Point difference = (GetMouseTile(startMousePos) - GetMouseTile(endMousePos));
-            selectedPos = selectedRoom.Box.Location - difference;
-
+            //Gizmos
+            GizmosControls(mousePos);
+            
+            //Move
+            if (gizmoSide == GizmoSide.None)
+            {
+                Point difference = (GetMouseTile(startMousePos) - GetMouseTile(endMousePos));
+                selectedTransform.Location = selectedRoom.Box.Location - difference;
+            }
+            
             canPlaceRoom = true;
             foreach (Room room in rooms)
             {
                 if(selectedRoom == room) continue;
-
-                Rectangle currentSelection = selectedRoom.Box with { Location = selectedPos };
                 
-                if (currentSelection.Intersects(room.Box))
+                if (selectedTransform.Intersects(room.Box))
                     canPlaceRoom = false;
             }
+            
         }
-        
+
         if (Input.LBReleased())
         {
             if (canPlaceRoom)
-                selectedRoom.Box.Location = selectedPos;
+                selectedRoom.Box = selectedTransform;
             else
             {
                 canPlaceRoom = true;
-                selectedPos = selectedRoom.Box.Location;
+                selectedTransform = selectedRoom.Box;
+            }
+        }
+        
+    }
+
+    private(RectangleF Top, 
+            RectangleF Bottom, 
+            RectangleF Left, 
+            RectangleF Right,
+            RectangleF TopLeft, 
+            RectangleF TopRight, 
+            RectangleF BottomLeft, 
+            RectangleF BottomRight) sizeGizmos;
+
+    private const int cornerGizmoSizeDefault = 16;
+    private float cornerGizmoSize;
+
+    enum GizmoSide { None, Top, Bottom, Left, Right }
+    private GizmoSide gizmoSide;
+
+    private void UpdateGizmos()
+    {
+        Rectangle box = ScaleRoom(selectedTransform);
+
+        cornerGizmoSize = cornerGizmoSizeDefault / editor.CameraMatrixScale.X;
+        
+        float cornerSize = cornerGizmoSize;
+        
+        sizeGizmos.Top      = new(box.Left + cornerSize, box.Top, box.Width - cornerSize*2, cornerSize);
+        sizeGizmos.Bottom   = new(box.Left + cornerSize, box.Bottom - cornerSize, box.Width - cornerSize*2, cornerSize);
+        sizeGizmos.Left     = new(box.Left, box.Top + cornerSize, cornerSize, box.Height - cornerSize*2);
+        sizeGizmos.Right    = new(box.Right - cornerGizmoSize, box.Top + cornerSize, cornerSize, box.Height - cornerSize*2);
+
+        sizeGizmos.TopLeft          = new(box.Left, box.Top, cornerSize, cornerSize);
+        sizeGizmos.TopRight         = new(box.Right - cornerSize, box.Top, cornerSize, cornerSize);
+        sizeGizmos.BottomLeft       = new(box.Left, box.Bottom - cornerSize, cornerSize, cornerSize);
+        sizeGizmos.BottomRight      = new(box.Right - cornerSize, box.Bottom - cornerSize, cornerSize, cornerSize);
+    }
+
+    private void GizmosControls(Point mousePos)
+    {
+        if (Input.LBPressed())
+        {
+            startMousePos = mousePos;
+            
+            if (sizeGizmos.Top.Contains(mousePos))      gizmoSide = GizmoSide.Top;
+            if (sizeGizmos.Bottom.Contains(mousePos))   gizmoSide = GizmoSide.Bottom;
+            if (sizeGizmos.Left.Contains(mousePos))     gizmoSide = GizmoSide.Left;
+            if (sizeGizmos.Right.Contains(mousePos))    gizmoSide = GizmoSide.Right;
+        }
+
+        if (gizmoSide != GizmoSide.None)
+        {
+            selectedTransform = selectedRoom.Box;
+            
+            if (gizmoSide == GizmoSide.Top)
+            {
+                selectedTransform.Y = GetMouseTile(mousePos).Y;
+                selectedTransform.Height = selectedRoom.Box.Height + (selectedRoom.Box.Y - selectedTransform.Y);
+            }
+            
+            if (gizmoSide == GizmoSide.Bottom)
+            {
+                selectedTransform.Height = GetMouseTile(mousePos).Y - selectedRoom.Box.Y + 1;
+            }
+            
+            if (gizmoSide == GizmoSide.Left)
+            {
+                selectedTransform.X = GetMouseTile(mousePos).X;
+                selectedTransform.Width = selectedRoom.Box.Width + (selectedRoom.Box.X - selectedTransform.X);
+            }
+            
+            if (gizmoSide == GizmoSide.Right)
+            {
+                selectedTransform.Width = GetMouseTile(mousePos).X - selectedRoom.Box.X + 1;
             }
         }
     }
@@ -228,7 +312,7 @@ class RoomManager
 
         if (selectedRoom != null)
         {
-            Rectangle final = ScaleRoom(selectedRoom.Box with { Location = selectedPos });
+            Rectangle final = ScaleRoom(selectedTransform);
             spriteBatch.FillRectangle(final, canPlaceRoom ? canPlaceColor : cannotPlaceColor);
         }
     }
@@ -250,10 +334,24 @@ class RoomManager
         
         if (selectedRoom != null)
         {
-            Rectangle final = ScaleRoom(selectedRoom.Box with { Location = selectedPos });
+            Rectangle final = ScaleRoom(selectedTransform);
             spriteBatch.DrawRectangle(final, selectedColor, 1.5f / editor.CameraMatrixScale.X);
+            
+            //Gizmos
+            float gizmoAlpha = 50;
+            void drawGizmo(Color color, RectangleF rect) => spriteBatch.FillRectangle(rect, new Color(color, gizmoAlpha));
+            
+            drawGizmo(Editor.gridCenterVerticalColor, sizeGizmos.Top);
+            drawGizmo(Editor.gridCenterVerticalColor, sizeGizmos.Bottom);
+            drawGizmo(Editor.gridCenterHorizontalColor, sizeGizmos.Left);
+            drawGizmo(Editor.gridCenterHorizontalColor, sizeGizmos.Right);
+            
+            Color cornerGizmoColor = Color.White;
+            drawGizmo(cornerGizmoColor, sizeGizmos.TopLeft);
+            drawGizmo(cornerGizmoColor, sizeGizmos.TopRight);
+            drawGizmo(cornerGizmoColor, sizeGizmos.BottomLeft);
+            drawGizmo(cornerGizmoColor, sizeGizmos.BottomRight);
         }
-        
     }
 
     private Rectangle ScaleRoom(Rectangle room)

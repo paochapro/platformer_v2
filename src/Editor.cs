@@ -174,10 +174,10 @@ class Editor : GameScreen
     
     //Viewmap
     private static readonly Rectangle viewmap = new(menuWidth, 0, 1200,800);
-    private static readonly Color viewmap_BgColor = new(60,60,60);
-    private static readonly Color gridColor = new(40,40,40, 100);
-    private static readonly Color gridCenterVerticalColor = new(132, 206, 13);
-    private static readonly Color gridCenterHorizontalColor = new(208,56,78);
+    public static readonly Color viewmap_BgColor = new(60,60,60);
+    public static readonly Color gridColor = new(40,40,40, 100);
+    public static readonly Color gridCenterVerticalColor = new(132, 206, 13);
+    public static readonly Color gridCenterHorizontalColor = new(208,56,78);
     
     //General
     private const int menuWidth = 300;
