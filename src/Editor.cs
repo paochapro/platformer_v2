@@ -31,7 +31,7 @@ class Editor : GameScreen
     
     //Viewmap
     private RenderTarget2D viewmapRenderTarget;
-    private Vector2 viewmapMousePos;
+    private Point viewmapMousePos;
     
     //Viewmap Camera
     public OrthographicCamera Camera { get; private set;}
@@ -50,7 +50,7 @@ class Editor : GameScreen
         CameraMatrixPos = cameraMatrixPos;
         CameraMatrixScale = cameraMatrixScale;
         
-        viewmapMousePos = Camera.ScreenToWorld(Input.Mouse.Position.ToVector2() - new Vector2(menuWidth,0));
+        viewmapMousePos = Camera.ScreenToWorld((Input.Mouse.Position - new Point(menuWidth,0)).ToVector2()).ToPoint();
         scrollValue += Input.Mouse.ScrollWheelValue - Input.PreviousMouse.ScrollWheelValue;
     }
     
@@ -59,12 +59,10 @@ class Editor : GameScreen
     {
         NavigationControls();
         
-        Point currentMouseTile = new( (int)Math.Floor(viewmapMousePos.X / (float)TileUnit), (int)Math.Floor(viewmapMousePos.Y / (float)TileUnit) );
-
         if(inRoomSelection) 
-            roomManager.RoomSelectionControls(currentMouseTile);
+            roomManager.RoomSelectionControls(viewmapMousePos);
         else
-            roomManager.RoomConstructionControls(currentMouseTile);
+            roomManager.RoomConstructionControls(viewmapMousePos);
 
         if (Input.KeyPressed(Keys.S))
         {

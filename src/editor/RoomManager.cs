@@ -12,21 +12,29 @@ namespace PlatformerV2.LevelEditor;
 class RoomManager
 {
     private Editor editor;
-    private List<Rectangle> rooms = new();
+    //private List<Rectangle> rooms = new();
+    private List<Room> rooms = new();
     
     private static readonly Color canPlaceColor = Color.Gray;
     private static readonly Color cannotPlaceColor = Color.DarkRed;
     
     private static readonly Color roomColor = new(40, 40, 40);
+    private static readonly Color roomOutlineColor = Color.Black;//new(60, 60, 60);
     private static readonly Color selectedColor = Color.Gold;
     
     private bool canPlaceRoom;
+    private Point startMousePos;
+    
+    //Room construction
+    private bool isConstructingRoom;
     private Rectangle constructionRoomOutline;
     private Rectangle constructionRoom;
-    private Point startMouseTile;
-    private Rectangle selectedRoom;
-    private int selectedRoomIndex;
-
+    
+    //Room selection
+    private Room? selectedRoom;
+    private Point selectedPos;
+    private RectangleF selectionBox;
+    
     public RoomManager(Editor editor)
     { 
         this.editor = editor;
@@ -36,14 +44,14 @@ class RoomManager
     public void ModeSwitch()
     {
         canPlaceRoom = false;
-        startMouseTile = Point.Zero;
+        isConstructingRoom = false;
         constructionRoom = Rectangle.Empty;
         constructionRoomOutline = Rectangle.Empty;
-        selectedRoom = Rectangle.Empty;
-        selectedRoomIndex = -1;
+        selectedRoom = null;
+        startMousePos = Point.Zero;
     }
 
-    private Rectangle RoomConstruction(Point startMouseTile, Point endMouseTile)
+    private Rectangle ConstructRoom(Point startMouseTile, Point endMouseTile)
     {
         Point startPos = startMouseTile;
         Point endPos = endMouseTile;
@@ -61,113 +69,191 @@ class RoomManager
         Rectangle constructedRoom = Rectangle.Union(new Rectangle(startPos, Size.Empty), new Rectangle(endPos, Size.Empty));
 
         canPlaceRoom = true;
-        foreach (Rectangle room in rooms)
+        foreach (Room room in rooms)
         {
-            if (constructedRoom.Intersects(room))
+            if (constructedRoom.Intersects(room.Box))
                 canPlaceRoom = false;
         }
         
         return constructedRoom;
     }
     
-    private void PlaceRoom(Rectangle room)
+    private void PlaceRoom(Room room)
     {
         rooms.Add(room);
     }
     
-    public void RoomConstructionControls(Point mouseTile)
-    {
-        if (Input.LBPressed()) startMouseTile = mouseTile;
-        if (Input.LBDown())
-        {
-            constructionRoom = RoomConstruction(startMouseTile, mouseTile);
-
-            constructionRoomOutline = ScaleRoom(constructionRoom);
-        }
-        if (Input.LBReleased())
-        {
-            if(canPlaceRoom) 
-                PlaceRoom(constructionRoom);
-            
-            constructionRoomOutline = Rectangle.Empty;
-            constructionRoom = Rectangle.Empty;
-        }
-    }
-    
-    public void RoomSelectionControls(Point mouseTile)
+    //Room construction
+    public void RoomConstructionControls(Point mousePos)
     {
         if (Input.LBPressed())
         {
-            startMouseTile = mouseTile;
-            selectedRoomIndex = -1;
-
-            for (int i = 0; i < rooms.Count; ++i)
-            {
-                Rectangle room = rooms[i];
-
-                if (room.Contains(mouseTile))
-                {
-                    selectedRoomIndex = i;
-                    selectedRoom = room;
-                }
-            }
+            startMousePos = mousePos;
+            isConstructingRoom = true;
         }
 
-        if(selectedRoomIndex == -1) return;
-
-        Point endMouseTile = mouseTile;
+        if (isConstructingRoom)
+            ConstructionControls(mousePos);
+        else
+        {
+            constructionRoomOutline = Rectangle.Empty;
+            constructionRoom = Rectangle.Empty;
+        }
         
+        if (Input.LBReleased())
+        {
+            startMousePos = Point.Zero;
+            isConstructingRoom = false;
+            return;
+        }
+    }
+
+    private void ConstructionControls(Point mousePos)
+    {
         if (Input.LBDown())
         {
-            Point difference = (startMouseTile - endMouseTile);
-            selectedRoom.Location = rooms[selectedRoomIndex].Location - difference;
+            constructionRoom = ConstructRoom(GetMouseTile(startMousePos), GetMouseTile(mousePos));
+            constructionRoomOutline = ScaleRoom(constructionRoom);
+        }
+        
+        if (Input.LBReleased())
+        {
+            if(canPlaceRoom) 
+                PlaceRoom(new Room(constructionRoom));
+            
+            constructionRoomOutline = Rectangle.Empty;
+            constructionRoom = Rectangle.Empty;
+
+            isConstructingRoom = false;
+        }
+    }
+
+    private void ResetSelection()
+    {
+        selectedPos = Point.Zero;
+        selectedRoom = null;
+        selectionBox = RectangleF.Empty;
+        startMousePos = Point.Zero;
+    }
+    
+    //Room selection
+    public void RoomSelectionControls(Point mousePos)
+    {
+        if (Input.LBPressed())
+        {
+            ResetSelection();
+
+            //Rooms
+            startMousePos = mousePos;
+            
+            foreach (Room room in rooms)
+                if (room.Box.Contains(GetMouseTile(startMousePos)))
+                {
+                    selectedRoom = room;
+                    selectedPos = room.Box.Location;
+                }
+
+            //Selection box
+            if (selectedRoom == null)
+                selectionBox = new RectangleF(startMousePos, Size2.Empty);
+        }
+
+        if (selectedRoom != null)
+        {
+            SelectedRoomControls(mousePos);
+            return;
+        }
+
+        if (selectionBox != RectangleF.Empty);       
+            SelectionBoxControls(mousePos);
+    }
+
+    private void SelectedRoomControls(Point mousePos)
+    {
+        Point endMousePos = mousePos;
+        
+        if (Input.KeyPressed(Keys.X))
+        {
+            rooms.Remove(selectedRoom);
+            ResetSelection();
+            return;
+        }
+
+        if (Input.LBDown())
+        {
+            Point difference = (GetMouseTile(startMousePos) - GetMouseTile(endMousePos));
+            selectedPos = selectedRoom.Box.Location - difference;
 
             canPlaceRoom = true;
-            for(int i = 0; i < rooms.Count; ++i)
+            foreach (Room room in rooms)
             {
-                if (selectedRoomIndex == i) continue;
+                if(selectedRoom == room) continue;
+
+                Rectangle currentSelection = selectedRoom.Box with { Location = selectedPos };
                 
-                if (selectedRoom.Intersects(rooms[i]))
+                if (currentSelection.Intersects(room.Box))
                     canPlaceRoom = false;
             }
         }
-
+        
         if (Input.LBReleased())
         {
-            if(canPlaceRoom)
-                rooms[selectedRoomIndex] = selectedRoom;
+            if (canPlaceRoom)
+                selectedRoom.Box.Location = selectedPos;
             else
             {
-                selectedRoom = rooms[selectedRoomIndex];
                 canPlaceRoom = true;
+                selectedPos = selectedRoom.Box.Location;
             }
         }
     }
 
+    private void SelectionBoxControls(Point mousePos)
+    {
+        if (Input.LBDown())
+            selectionBox = RectangleF.Union(new RectangleF(startMousePos, Size2.Empty), new RectangleF(mousePos, Size2.Empty));
+
+        if (Input.LBReleased())
+            ResetSelection();
+    }
+
+    //Draw
     public void DrawUnderGrid(SpriteBatch spriteBatch)
     {
-        for(int i = 0; i < rooms.Count; ++i)
+        foreach (Room room in rooms)
         {
-            if (selectedRoomIndex == i) continue;
-            Rectangle scaledRoom = ScaleRoom(rooms[i]);
-            spriteBatch.FillRectangle(scaledRoom, roomColor);
+            if (room == selectedRoom) continue;
+            spriteBatch.FillRectangle(ScaleRoom(room.Box), roomColor);
         }
 
-        if (selectedRoomIndex != -1)
+        if (selectedRoom != null)
         {
-            spriteBatch.FillRectangle(ScaleRoom(selectedRoom), canPlaceRoom ? canPlaceColor : cannotPlaceColor);
+            Rectangle final = ScaleRoom(selectedRoom.Box with { Location = selectedPos });
+            spriteBatch.FillRectangle(final, canPlaceRoom ? canPlaceColor : cannotPlaceColor);
         }
     }
     
     public void DrawOnGrid(SpriteBatch spriteBatch)
     {
-        Color outlineColor = canPlaceRoom ? canPlaceColor : cannotPlaceColor;
-        spriteBatch.DrawRectangle(constructionRoomOutline, outlineColor, 1.5f / editor.CameraMatrixScale.X);
-
-        if (selectedRoomIndex != -1)
+        foreach (Room room in rooms)
         {
-            spriteBatch.DrawRectangle(ScaleRoom(selectedRoom), selectedColor, 1.5f / editor.CameraMatrixScale.X);
+            if (room == selectedRoom) continue;
+            spriteBatch.DrawRectangle(ScaleRoom(room.Box), roomOutlineColor, 1f / editor.CameraMatrixScale.X);
         }
+        
+        spriteBatch.DrawRectangle(selectionBox, Color.Orange, 1f / editor.CameraMatrixScale.X);
+        
+        Color outlineColor = canPlaceRoom ? canPlaceColor : cannotPlaceColor;
+
+        if (isConstructingRoom)
+            spriteBatch.DrawRectangle(constructionRoomOutline, outlineColor, 1.5f / editor.CameraMatrixScale.X);
+        
+        if (selectedRoom != null)
+        {
+            Rectangle final = ScaleRoom(selectedRoom.Box with { Location = selectedPos });
+            spriteBatch.DrawRectangle(final, selectedColor, 1.5f / editor.CameraMatrixScale.X);
+        }
+        
     }
 
     private Rectangle ScaleRoom(Rectangle room)
@@ -178,4 +264,15 @@ class RoomManager
             Size = room.Size * new Point(Editor.TileUnit),
         };
     }
+    
+    private Point GetMouseTile(Point mousePos)
+    {
+        return new( (int)Math.Floor(mousePos.X / (float)Editor.TileUnit), (int)Math.Floor(mousePos.Y / (float)Editor.TileUnit) );
+    }
+}
+
+class Room
+{
+    public Rectangle Box;
+    public Room(Rectangle box) => Box = box;
 }
