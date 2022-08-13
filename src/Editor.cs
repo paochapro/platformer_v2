@@ -40,7 +40,7 @@ class Editor : GameScreen
     
     
     //Building
-    private bool inRoomSelection = true;
+    private bool inRoomSelection;
 
     public override void Update(GameTime gameTime)
     {
@@ -59,12 +59,18 @@ class Editor : GameScreen
     {
         NavigationControls();
         
-        Point currentMouseTile = new( (int)Math.Ceiling(viewmapMousePos.X / (float)TileUnit), (int)Math.Ceiling(viewmapMousePos.Y / (float)TileUnit) );
-        
+        Point currentMouseTile = new( (int)Math.Floor(viewmapMousePos.X / (float)TileUnit), (int)Math.Floor(viewmapMousePos.Y / (float)TileUnit) );
+
         if(inRoomSelection) 
             roomManager.RoomSelectionControls(currentMouseTile);
         else
             roomManager.RoomConstructionControls(currentMouseTile);
+
+        if (Input.KeyPressed(Keys.S))
+        {
+            inRoomSelection = !inRoomSelection;
+            roomManager.ModeSwitch();
+        }
     }
 
     private void NavigationControls()
@@ -118,9 +124,9 @@ class Editor : GameScreen
     
     private void DrawViewmap(SpriteBatch spriteBatch)
     {
-        roomManager.DrawRooms(spriteBatch);
+        roomManager.DrawUnderGrid(spriteBatch);
         DrawGrid(spriteBatch);
-        roomManager.DrawConstructionRoomOutline(spriteBatch);
+        roomManager.DrawOnGrid(spriteBatch);
     }
     
     private void DrawMenu(SpriteBatch spriteBatch)
