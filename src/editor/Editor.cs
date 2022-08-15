@@ -18,7 +18,7 @@ class Editor : GameScreen
 
     public const int TileUnit = PlatformerV2.Main.Map.TileUnit;
 
-    private RoomManager roomManager;
+    private RoomHandler roomManager;
     
     private Texture2D errorTexture;
     
@@ -31,14 +31,14 @@ class Editor : GameScreen
     
     //Viewmap
     private RenderTarget2D viewmapRenderTarget;
-    private Point viewmapMousePos;
+    private Vector2 viewmapMousePos;
+    public Vector2 StartMousePos { get; private set; }
     
     //Viewmap Camera
     public OrthographicCamera Camera { get; private set;}
     public Vector2 CameraMatrixPos { get; private set; }
     public Vector2 CameraMatrixScale { get; private set; }
-    
-    
+
     //Building
     private bool inRoomSelection;
 
@@ -50,7 +50,7 @@ class Editor : GameScreen
         CameraMatrixPos = cameraMatrixPos;
         CameraMatrixScale = cameraMatrixScale;
         
-        viewmapMousePos = Camera.ScreenToWorld((Input.Mouse.Position - new Point(menuWidth,0)).ToVector2()).ToPoint();
+        viewmapMousePos = Camera.ScreenToWorld((Input.Mouse.Position - new Point(menuWidth,0)).ToVector2());
         scrollValue += Input.Mouse.ScrollWheelValue - Input.PreviousMouse.ScrollWheelValue;
     }
     
@@ -58,11 +58,21 @@ class Editor : GameScreen
     private void Controls()
     {
         NavigationControls();
+
+        if (Input.LBPressed())
+        {
+            StartMousePos = viewmapMousePos;
+        }
         
         if(inRoomSelection) 
             roomManager.RoomSelectionControls(viewmapMousePos);
         else
             roomManager.RoomConstructionControls(viewmapMousePos);
+        
+        if (Input.LBReleased())
+        {
+            StartMousePos = Vector2.Zero;
+        }
 
         if (Input.KeyPressed(Keys.S))
         {
@@ -169,7 +179,12 @@ class Editor : GameScreen
     {
         Game.ChangeScreenSize(ScreenSize);
         Camera = new OrthographicCamera(Game.GraphicsDevice);
-        roomManager = new RoomManager(this);
+        roomManager = new RoomHandler(this);
+    }
+    
+    public Point GetMouseTile(Vector2 mousePos)
+    {
+        return new( (int)Math.Floor(mousePos.X / (float)TileUnit), (int)Math.Floor(mousePos.Y / (float)TileUnit) );
     }
     
     //Viewmap
