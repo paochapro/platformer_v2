@@ -6,6 +6,7 @@ using MonoGame.Extended;
 using MonoGame.Extended.Screens;
 
 using Lib;
+using PlatformerV2.Main;
 
 namespace PlatformerV2.LevelEditor;
 
@@ -14,6 +15,7 @@ partial class RoomHandler
     private Editor editor;
     private GizmoHandler gizmoHandler;
     private List<Room> rooms = new();
+    public IEnumerable<Room> Rooms => rooms;
     
     //Colors
     private static readonly Color canPlaceColor = Color.Gray;
@@ -37,7 +39,7 @@ partial class RoomHandler
     
     //Methods
     public RoomHandler(Editor editor)
-    { 
+    {
         this.editor = editor;
         ModeSwitch();
     }
@@ -139,9 +141,6 @@ partial class RoomHandler
     {
         Point startMouseTile = editor.GetMouseTile(editor.StartMousePos);
         
-        if(selectedRoom != null)
-            SelectedRoomControls(mousePos);
-        
         if (Input.LBPressed() && (selectedRoom == null || !selectedRoom.Box.Contains(startMouseTile)))
         {
             ResetSelection();
@@ -153,7 +152,12 @@ partial class RoomHandler
                     selectedTransform = room.Box;
                     gizmoHandler = new GizmoHandler(editor, this);
                 }
+
+            return;
         }
+           
+        if(selectedRoom != null)
+            SelectedRoomControls(mousePos);
     }
 
     private void SelectedRoomControls(Vector2 mousePos)
@@ -210,13 +214,32 @@ partial class RoomHandler
         foreach (Room room in rooms)
         {
             if (room == selectedRoom) continue;
+            
             spriteBatch.FillRectangle(ScaleRoom(room.Box), roomColor);
+            
+            for(int y = 0; y < room.Tiles.GetLength(0); ++y)
+            for (int x = 0; x < room.Tiles.GetLength(1); ++x)
+            {
+                if(room.Tiles[y,x] == Map.Tile.None) continue;
+                
+                Point pos = (new Point(x, y) + room.Box.Location) * new Point(Map.TileUnit);
+                spriteBatch.FillRectangle(new Rectangle(pos, new Point(Map.TileUnit)), Color.Black);
+            }
         }
 
         if (selectedRoom != null)
         {
             Rectangle final = ScaleRoom(selectedTransform);
             spriteBatch.FillRectangle(final, canChangeRoom ? canPlaceColor : cannotPlaceColor);
+            
+            for(int y = 0; y < selectedRoom.Tiles.GetLength(0); ++y)
+            for(int x = 0; x < selectedRoom.Tiles.GetLength(1); ++x)
+            {
+                if(selectedRoom.Tiles[y,x] == Map.Tile.None) continue;
+
+                Point pos = (new Point(x, y) + selectedTransform.Location) * new Point(Map.TileUnit);
+                spriteBatch.FillRectangle(new Rectangle(pos, new Point(Map.TileUnit)), Color.Black);
+            }
         }
     }
     
@@ -253,6 +276,67 @@ partial class RoomHandler
 
 class Room
 {
-    public Rectangle Box;
-    public Room(Rectangle box) => Box = box;
+    private Rectangle box;
+    public Rectangle Box
+    {
+        get => box; 
+        set
+        {
+            Rectangle oldBox = box;
+            
+            box = value;
+            
+            int yOffset = oldBox.Height - box.Height;
+            int xOffset = oldBox.Width - box.Width;
+
+            if (oldBox.X == box.X) xOffset = 0;
+            if (oldBox.Y == box.Y) yOffset = 0;
+            
+            //New tiles
+            Map.Tile[,] newTiles = new Map.Tile[box.Height, box.Width];
+            
+            int printX = 0;
+            int printY = 0;
+            
+            try
+            {
+                for (int y = 0; y < newTiles.GetLength(0); ++y)
+                for (int x = 0; x < newTiles.GetLength(1); ++x)
+                {
+                    printX = x;
+                    printY = y;
+                
+                    bool outside = (
+                        y + yOffset < 0 ||
+                        x + xOffset < 0 ||
+                        y + yOffset >= tiles.GetLength(0) ||
+                        x + xOffset >= tiles.GetLength(1)
+                    );
+                    if (outside) continue;
+
+                    newTiles[y, x] = tiles[y + yOffset, x + xOffset];
+                }
+            }
+            catch(Exception e)
+            {
+                Console.WriteLine("Exception: " + e.Message);
+                Console.WriteLine("xOffset: " + xOffset + " yOffset: " + yOffset);
+                Console.WriteLine("newTilesX: " + newTiles.GetLength(1) + " newTilesX: " + newTiles.GetLength(0));
+                Console.WriteLine("tilesX: " + tiles.GetLength(1) + " tilesY: " + tiles.GetLength(0));
+                Console.WriteLine("x: " + printX + " y: " + printY);
+            }
+
+            tiles = newTiles;
+        } 
+    }
+    
+    private Map.Tile[,] tiles;
+    public Map.Tile[,] Tiles => (Map.Tile[,])tiles.Clone();
+    public void SetTile(int x, int y, Map.Tile tile) => tiles[y, x] = tile;
+
+    public Room(Rectangle box)
+    {
+        this.box = box;
+        tiles = new Map.Tile[box.Height, box.Width];
+    }
 }

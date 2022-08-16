@@ -18,7 +18,8 @@ class Editor : GameScreen
 
     public const int TileUnit = PlatformerV2.Main.Map.TileUnit;
 
-    private RoomHandler roomManager;
+    private RoomHandler roomHandler;
+    private TileHandler tileHandler;
     
     private Texture2D errorTexture;
     
@@ -40,7 +41,8 @@ class Editor : GameScreen
     public Vector2 CameraMatrixScale { get; private set; }
 
     //Building
-    private bool inRoomSelection;
+    enum Mode { RoomSelection, RoomConstruction, Tiles }
+    private Mode mode;
 
     public override void Update(GameTime gameTime)
     {
@@ -64,20 +66,35 @@ class Editor : GameScreen
             StartMousePos = viewmapMousePos;
         }
 
-        if (inRoomSelection)
-            roomManager.RoomSelectionControls(viewmapMousePos);
-        else
-            roomManager.RoomConstructionControls(viewmapMousePos);
+        if (mode == Mode.RoomSelection)
+            roomHandler.RoomSelectionControls(viewmapMousePos);
+        
+        if(mode == Mode.RoomConstruction)
+            roomHandler.RoomConstructionControls(viewmapMousePos);
+        
+        if(mode == Mode.Tiles)
+            tileHandler.Controls(viewmapMousePos);
         
         if (Input.LBReleased())
         {
             StartMousePos = Vector2.Zero;
         }
 
-        if (Input.KeyPressed(Keys.S))
+        if (Input.KeyPressed(Keys.Q))
         {
-            inRoomSelection = !inRoomSelection;
-            roomManager.ModeSwitch();
+            mode = Mode.RoomSelection;
+            roomHandler.ModeSwitch();
+        }
+        
+        if (Input.KeyPressed(Keys.W))
+        {
+            mode = Mode.RoomConstruction;
+            roomHandler.ModeSwitch();
+        }
+        if (Input.KeyPressed(Keys.E))
+        {
+            mode = Mode.Tiles;
+            roomHandler.ModeSwitch();
         }
     }
 
@@ -132,9 +149,9 @@ class Editor : GameScreen
     
     private void DrawViewmap(SpriteBatch spriteBatch)
     {
-        roomManager.DrawUnderGrid(spriteBatch);
+        roomHandler.DrawUnderGrid(spriteBatch);
         DrawGrid(spriteBatch);
-        roomManager.DrawOnGrid(spriteBatch);
+        roomHandler.DrawOnGrid(spriteBatch);
     }
     
     private void DrawMenu(SpriteBatch spriteBatch)
@@ -179,7 +196,8 @@ class Editor : GameScreen
     {
         Game.ChangeScreenSize(ScreenSize);
         Camera = new OrthographicCamera(Game.GraphicsDevice);
-        roomManager = new RoomHandler(this);
+        roomHandler = new RoomHandler(this);
+        tileHandler = new TileHandler(this, roomHandler);
     }
     
     public Point GetMouseTile(Vector2 mousePos)
