@@ -133,3 +133,15 @@ internal static class Utils
     public static float lerp(float a, float b, float t) => (1-t) * a + t * b;
     public static float inverseLerp(float a, float b, float v) => (v-a) / (b-a);
 }
+
+static class Directions
+{
+    public static Vector2 Up            => -Vector2.UnitY;
+    public static Vector2 Down          => Vector2.UnitY;
+    public static Vector2 Left          => -Vector2.UnitX;
+    public static Vector2 Right         => Vector2.UnitX;
+    public static Vector2 UpLeft        => Up + Left;
+    public static Vector2 UpRight       => Up + Right;
+    public static Vector2 DownLeft      => Down + Left;
+    public static Vector2 DownRight     => Down + Right;
+}

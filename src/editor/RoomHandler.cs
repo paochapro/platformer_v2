@@ -34,7 +34,6 @@ partial class RoomHandler
     //Room selection
     private Room? selectedRoom;
     private Rectangle selectedTransform;
-    private RectangleF selectionBox;
     
     //Methods
     public RoomHandler(Editor editor)
@@ -118,7 +117,6 @@ partial class RoomHandler
         
         if (Input.LBReleased())
         {
-            
             if(canChangeRoom) 
                 PlaceRoom(new Room(constructionRoom));
             
@@ -134,37 +132,28 @@ partial class RoomHandler
     {
         selectedTransform = Rectangle.Empty;
         selectedRoom = null;
-        selectionBox = RectangleF.Empty;
         gizmoHandler = null;
     }
-    
+
     public void RoomSelectionControls(Vector2 mousePos)
     {
-        if (Input.LBPressed())
+        Point startMouseTile = editor.GetMouseTile(editor.StartMousePos);
+        
+        if(selectedRoom != null)
+            SelectedRoomControls(mousePos);
+        
+        if (Input.LBPressed() && (selectedRoom == null || !selectedRoom.Box.Contains(startMouseTile)))
         {
             ResetSelection();
-            
+
             foreach (Room room in rooms)
-                if (room.Box.Contains(editor.GetMouseTile(editor.StartMousePos)))
+                if (room.Box.Contains(startMouseTile))
                 {
                     selectedRoom = room;
                     selectedTransform = room.Box;
-                    gizmoHandler = new GizmoHandler(room.Box, editor, this);
+                    gizmoHandler = new GizmoHandler(editor, this);
                 }
-
-            //Selection box
-            if (selectedRoom == null)
-                selectionBox = new RectangleF(editor.StartMousePos, Size2.Empty);
         }
-
-        if (selectedRoom != null)
-        {
-            SelectedRoomControls(mousePos); 
-            return;
-        }
-
-        if (selectionBox != RectangleF.Empty)
-            SelectionBoxControls(mousePos);
     }
 
     private void SelectedRoomControls(Vector2 mousePos)
@@ -178,14 +167,15 @@ partial class RoomHandler
             return;
         }
         
-        bool gizmoGrabed = gizmoHandler.UpdateGizmos(mousePos, ScaleRoom(selectedTransform));
+        bool gizmoGrabed = gizmoHandler.UpdateGizmos(mousePos, selectedRoom.Box, ScaleRoom(selectedTransform));
         
         if (Input.LBDown())
         {
             if (gizmoGrabed)
-                selectedTransform = gizmoHandler.GizmosControls(mousePos);
+                selectedTransform = gizmoHandler.GizmosControls(mousePos, selectedTransform);
             else
             {
+                Mouse.SetCursor(MouseCursor.SizeAll);
                 Point difference = (editor.GetMouseTile(editor.StartMousePos) - editor.GetMouseTile(endMousePos));
                 selectedTransform.Location = selectedRoom.Box.Location - difference;
             }
@@ -213,16 +203,6 @@ partial class RoomHandler
         }
         
     }
-    
-    //Selection box
-    private void SelectionBoxControls(Vector2 mousePos)
-    {
-        if (Input.LBDown())
-            selectionBox = RectangleF.Union(new RectangleF(editor.StartMousePos, Size2.Empty), new RectangleF(mousePos, Size2.Empty));
-
-        if (Input.LBReleased())
-            ResetSelection();
-    }
 
     //Draw
     public void DrawUnderGrid(SpriteBatch spriteBatch)
@@ -247,8 +227,6 @@ partial class RoomHandler
             if (room == selectedRoom) continue;
             spriteBatch.DrawRectangle(ScaleRoom(room.Box), roomOutlineColor, 1f / editor.CameraMatrixScale.X);
         }
-        
-        spriteBatch.DrawRectangle(selectionBox, Color.Orange, 1f / editor.CameraMatrixScale.X);
         
         Color outlineColor = canChangeRoom ? canPlaceColor : cannotPlaceColor;
 

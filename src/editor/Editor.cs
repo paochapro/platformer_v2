@@ -63,8 +63,8 @@ class Editor : GameScreen
         {
             StartMousePos = viewmapMousePos;
         }
-        
-        if(inRoomSelection) 
+
+        if (inRoomSelection)
             roomManager.RoomSelectionControls(viewmapMousePos);
         else
             roomManager.RoomConstructionControls(viewmapMousePos);

@@ -14,12 +14,13 @@ class GizmoHandler
 {
     private Editor editor;
     private RoomHandler roomHandler;
-    private Rectangle selectedRoom;
     private Gizmos gizmos;
+    private Rectangle selectedRoomBox;
+    
+    private const float gizmoAlpha = 50;
 
-    public GizmoHandler(Rectangle selectedRoom, Editor editor, RoomHandler roomHandler)
+    public GizmoHandler(Editor editor, RoomHandler roomHandler)
     {
-        this.selectedRoom = selectedRoom;
         this.roomHandler = roomHandler;
         this.editor = editor;
         this.gizmos = new Gizmos();
@@ -28,37 +29,92 @@ class GizmoHandler
     class Gizmo
     {
         public RectangleF Rect;
-        public Vector2 Direction { get; private set; }
-        public MouseCursor Cursor { get; private set; }
-        public Gizmo(Vector2 direction)
-        {
-            Direction = direction;
-            
-            if(direction.X == 0) Cursor = MouseCursor.SizeNS;
-            if(direction.Y == 0) Cursor = MouseCursor.SizeWE;
+        public Vector2 Side { get; init; }
+        public MouseCursor Cursor { get; init; }
+        public Color Color { get; init; }
 
-            if (direction == new Vector2(-1,-1) || direction == new Vector2(1,1))
+        public Gizmo(Vector2 side)
+        {
+            Side = side;
+            
+            if (side.X == 0)
+            {
+                Cursor = MouseCursor.SizeNS;
+                Color = Editor.gridCenterVerticalColor;
+            }
+
+            if (side.Y == 0)
+            {
+                Cursor = MouseCursor.SizeWE;
+                Color = Editor.gridCenterHorizontalColor;
+            }
+
+            if (side == new Vector2(-1,-1) || side == new Vector2(1,1))
             {
                 Cursor = MouseCursor.SizeNWSE;
+                Color = Color.White;
             }
             
-            if (direction == new Vector2(-1,1) || direction == new Vector2(1,-1))
+            if (side == new Vector2(-1,1) || side == new Vector2(1,-1))
             {
                 Cursor = MouseCursor.SizeNESW;
+                Color = Color.White;
             }
         } 
+        
+        //Debug constructor
+        public Gizmo(Vector2 side, bool fictiveDebug)
+        {
+            Side = side;
+            
+            if (side == new Vector2(0, -1))
+            {
+                Cursor = MouseCursor.SizeNS;
+                Color = Color.Green;
+            }
+            
+            if (side == new Vector2(0, 1))
+            {
+                Cursor = MouseCursor.SizeNS;
+                Color = Color.Yellow;
+            }
+            
+            if (side == new Vector2(1, 0))
+            {
+                Cursor = MouseCursor.SizeWE;
+                Color = Color.Red;
+            }
+            
+            if (side == new Vector2(-1, 0))
+            {
+                Cursor = MouseCursor.SizeWE;
+                Color = Color.Blue;
+            }
+
+            if (side == new Vector2(-1,-1) || side == new Vector2(1,1))
+            {
+                Cursor = MouseCursor.SizeNWSE;
+                Color = Color.White;
+            }
+            
+            if (side == new Vector2(-1,1) || side == new Vector2(1,-1))
+            {
+                Cursor = MouseCursor.SizeNESW;
+                Color = Color.White;
+            }
+        }
     }
 
     class Gizmos
     {
-        public Gizmo Top         = new(-Vector2.UnitY);
-        public Gizmo Bottom      = new(Vector2.UnitY);
-        public Gizmo Left        = new(-Vector2.UnitX);
-        public Gizmo Right       = new(Vector2.UnitX);
-        public Gizmo TopLeft     = new(new Vector2(-1,-1));
-        public Gizmo TopRight    = new(new Vector2(1, -1));
-        public Gizmo BottomLeft  = new(new Vector2(-1, 1));
-        public Gizmo BottomRight = new(new Vector2(1, 1));
+        public Gizmo Top         = new(Directions.Up);
+        public Gizmo Bottom      = new(Directions.Down);
+        public Gizmo Left        = new(Directions.Left);
+        public Gizmo Right       = new(Directions.Right);
+        public Gizmo TopLeft     = new(Directions.UpLeft);
+        public Gizmo TopRight    = new(Directions.UpRight);
+        public Gizmo BottomLeft  = new(Directions.DownLeft);
+        public Gizmo BottomRight = new(Directions.DownRight);
 
         public IEnumerator<Gizmo> GetEnumerator()
         {
@@ -78,12 +134,12 @@ class GizmoHandler
     private Gizmo? grabedGizmo;
     
     //Gizmos
-    public bool UpdateGizmos(Vector2 mousePos, Rectangle selectedTransform)
+    public bool UpdateGizmos(Vector2 mousePos, Rectangle selectedRoomBox, Rectangle selectedTransform)
     {
         RectangleF box = selectedTransform;
+        this.selectedRoomBox = selectedRoomBox;
 
         cornerGizmoSize = cornerGizmoSizeDefault / editor.CameraMatrixScale.X;
-        
         float cornerSize = cornerGizmoSize;
         
         gizmos.Top.Rect      = new(box.Left + cornerSize, box.Top, box.Width - cornerSize*2, cornerSize);
@@ -113,89 +169,66 @@ class GizmoHandler
         return grabedGizmo != null;
     }
     
-    public Rectangle GizmosControls(Vector2 mousePos)
+    public Rectangle GizmosControls(Vector2 mousePos, Rectangle selectedTransform)
     {
-        Rectangle selectedTransform;
-        
         if (grabedGizmo == null)
         {
             Console.WriteLine("No gizmo grabed in GizmoControls! Line: 294");
             return Rectangle.Empty;
         }
         
-        selectedTransform = selectedRoom;
-        Vector2 dir = grabedGizmo.Direction;
-        Mouse.SetCursor(grabedGizmo.Cursor);
-
+        Vector2 side = grabedGizmo.Side;
         Point mouseTile = editor.GetMouseTile(mousePos);
-        
-        if (dir.Y == 1)
+
+        if (side.Y == 1)
         {
-            selectedTransform.Height = mouseTile.Y - selectedRoom.Y + 1;
+            selectedTransform.Height = mouseTile.Y - selectedRoomBox.Y + 1;
+            
+            if (selectedTransform.Height <= 0) selectedTransform.Height = 1;
         }
         
-        if (dir.Y == -1)
+        if (side.Y == -1)
         {
             selectedTransform.Y = mouseTile.Y;
-            selectedTransform.Height = selectedRoom.Height + (selectedRoom.Y - selectedTransform.Y);
+            
+            int rightSide = selectedRoomBox.Y + selectedRoomBox.Height;
+            
+            if (selectedTransform.Y >= rightSide)
+                selectedTransform.Y = rightSide - 1;
+            
+            selectedTransform.Height = selectedRoomBox.Height + (selectedRoomBox.Y - selectedTransform.Y);
         }
 
-        if (dir.X == 1)
+        if (side.X == 1)
         {
-            selectedTransform.Width = mouseTile.X - selectedRoom.X + 1;
+            selectedTransform.Width = mouseTile.X - selectedRoomBox.X + 1;
+            
+            if (selectedTransform.Width <= 0) selectedTransform.Width = 1;
         }
         
-        if (dir.X == -1)
+        if (side.X == -1)
         {
             selectedTransform.X = mouseTile.X;
-            selectedTransform.Width = selectedRoom.Width + (selectedRoom.X - selectedTransform.X);
-        }
 
-        /*Console.WriteLine("dir: " + dir);
+            int leftSide = selectedRoomBox.X + selectedRoomBox.Width;
 
-        if (selectedTransform.Width <= 0)
-        {
-            if (dir.X == 1)
-            {
-                grabedGizmo = gizmos.Left;
-            }
-            if(dir.X == -1)
-            {
-                grabedGizmo = gizmos.Right;
-            }
-
-            selectedTransform.Width = 1;
-        }
-        
-        if (selectedTransform.Height < 0)
-        {
-            grabedGizmo = gizmos.Top;
-
-            int positiveHeight = Math.Abs(selectedTransform.Height);
+            if (selectedTransform.X >= leftSide)
+                selectedTransform.X = leftSide - 1;
             
-            selectedTransform.Y = selectedTransform.Y - positiveHeight;
-            selectedTransform.Height = positiveHeight;
+            selectedTransform.Width = selectedRoomBox.Width + (selectedRoomBox.X - selectedTransform.X);
         }
-        */
 
+        Mouse.SetCursor(grabedGizmo.Cursor);
         return selectedTransform;
     }
 
     public void DrawGizmos(SpriteBatch spriteBatch)
     {
         //Gizmos
-        float gizmoAlpha = 50;
-        void drawGizmo(Color color, Gizmo gizmo) => spriteBatch.FillRectangle(gizmo.Rect, new Color(color, gizmoAlpha));
-            
-        drawGizmo(Editor.gridCenterVerticalColor, gizmos.Top);
-        drawGizmo(Editor.gridCenterVerticalColor, gizmos.Bottom);
-        drawGizmo(Editor.gridCenterHorizontalColor, gizmos.Left);
-        drawGizmo(Editor.gridCenterHorizontalColor, gizmos.Right);
-            
-        Color cornerGizmoColor = Color.White;
-        drawGizmo(cornerGizmoColor, gizmos.TopLeft);
-        drawGizmo(cornerGizmoColor, gizmos.TopRight);
-        drawGizmo(cornerGizmoColor, gizmos.BottomLeft);
-        drawGizmo(cornerGizmoColor, gizmos.BottomRight);
+
+        foreach (Gizmo gizmo in gizmos)
+        {
+            spriteBatch.FillRectangle(gizmo.Rect, new Color(gizmo.Color, gizmoAlpha));
+        }
     }
 }
