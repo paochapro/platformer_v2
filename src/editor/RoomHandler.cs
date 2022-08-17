@@ -210,7 +210,8 @@ partial class RoomHandler
 
     //Draw
     public void DrawUnderGrid(SpriteBatch spriteBatch)
-    {
+    {            
+        //TODO: maybe optimize tile drawing
         foreach (Room room in rooms)
         {
             if (room == selectedRoom) continue;
@@ -218,7 +219,7 @@ partial class RoomHandler
             spriteBatch.FillRectangle(ScaleRoom(room.Box), roomColor);
             
             for(int y = 0; y < room.Tiles.GetLength(0); ++y)
-            for (int x = 0; x < room.Tiles.GetLength(1); ++x)
+            for(int x = 0; x < room.Tiles.GetLength(1); ++x)
             {
                 if(room.Tiles[y,x] == Map.Tile.None) continue;
                 
@@ -227,11 +228,13 @@ partial class RoomHandler
             }
         }
 
+        return;
+
         if (selectedRoom != null)
         {
             Rectangle final = ScaleRoom(selectedTransform);
             spriteBatch.FillRectangle(final, canChangeRoom ? canPlaceColor : cannotPlaceColor);
-            
+
             for(int y = 0; y < selectedRoom.Tiles.GetLength(0); ++y)
             for(int x = 0; x < selectedRoom.Tiles.GetLength(1); ++x)
             {
@@ -285,7 +288,7 @@ class Room
             Rectangle oldBox = box;
             
             box = value;
-            
+
             int yOffset = oldBox.Height - box.Height;
             int xOffset = oldBox.Width - box.Width;
 
@@ -295,35 +298,18 @@ class Room
             //New tiles
             Map.Tile[,] newTiles = new Map.Tile[box.Height, box.Width];
             
-            int printX = 0;
-            int printY = 0;
-            
-            try
+            for (int y = 0; y < newTiles.GetLength(0); ++y)
+            for (int x = 0; x < newTiles.GetLength(1); ++x)
             {
-                for (int y = 0; y < newTiles.GetLength(0); ++y)
-                for (int x = 0; x < newTiles.GetLength(1); ++x)
-                {
-                    printX = x;
-                    printY = y;
-                
-                    bool outside = (
-                        y + yOffset < 0 ||
-                        x + xOffset < 0 ||
-                        y + yOffset >= tiles.GetLength(0) ||
-                        x + xOffset >= tiles.GetLength(1)
-                    );
-                    if (outside) continue;
+                bool outside = (
+                    y + yOffset < 0 ||
+                    x + xOffset < 0 ||
+                    y + yOffset >= tiles.GetLength(0) ||
+                    x + xOffset >= tiles.GetLength(1)
+                );
+                if (outside) continue;
 
-                    newTiles[y, x] = tiles[y + yOffset, x + xOffset];
-                }
-            }
-            catch(Exception e)
-            {
-                Console.WriteLine("Exception: " + e.Message);
-                Console.WriteLine("xOffset: " + xOffset + " yOffset: " + yOffset);
-                Console.WriteLine("newTilesX: " + newTiles.GetLength(1) + " newTilesX: " + newTiles.GetLength(0));
-                Console.WriteLine("tilesX: " + tiles.GetLength(1) + " tilesY: " + tiles.GetLength(0));
-                Console.WriteLine("x: " + printX + " y: " + printY);
+                newTiles[y, x] = tiles[y + yOffset, x + xOffset];
             }
 
             tiles = newTiles;
@@ -331,7 +317,10 @@ class Room
     }
     
     private Map.Tile[,] tiles;
-    public Map.Tile[,] Tiles => (Map.Tile[,])tiles.Clone();
+    
+    //TODO: readonly two dimensional array
+    public Map.Tile[,] Tiles => tiles;
+    
     public void SetTile(int x, int y, Map.Tile tile) => tiles[y, x] = tile;
 
     public Room(Rectangle box)
