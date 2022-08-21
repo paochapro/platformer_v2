@@ -1,9 +1,7 @@
 ﻿using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
-using Microsoft.Xna.Framework.Audio;
 using MonoGame.Extended;
-using MonoGame.Extended.Screens;
 
 using Lib;
 using PlatformerV2.Main;
@@ -35,8 +33,8 @@ partial class RoomHandler
     
     //Room selection
     private Room? selectedRoom;
-    private Rectangle selectedTransform;
-    
+    private Room? transformRoom;
+
     //Methods
     public RoomHandler(Editor editor)
     {
@@ -54,6 +52,7 @@ partial class RoomHandler
         ResetSelection();
     }
 
+    //Room construction
     private Rectangle ConstructRoom(Point startMouseTile, Point endMouseTile)
     {
         Point startPos = startMouseTile;
@@ -86,7 +85,6 @@ partial class RoomHandler
         rooms.Add(room);
     }
     
-    //Room construction
     public void RoomConstructionControls(Vector2 mousePos)
     {
         if (Input.LBPressed())
@@ -132,9 +130,11 @@ partial class RoomHandler
     //Room selection
     private void ResetSelection()
     {
-        selectedTransform = Rectangle.Empty;
+        transformRoom = null;
         selectedRoom = null;
         gizmoHandler = null;
+
+        grabingGizmo = false;
     }
 
     public void RoomSelectionControls(Vector2 mousePos)
@@ -149,7 +149,9 @@ partial class RoomHandler
                 if (room.Box.Contains(startMouseTile))
                 {
                     selectedRoom = room;
-                    selectedTransform = room.Box;
+                    transformRoom = new Room(room.Box, room.Tiles);
+
+                    transformRoom.Box = room.Box;
                     gizmoHandler = new GizmoHandler(editor, this);
                 }
 
@@ -160,6 +162,8 @@ partial class RoomHandler
             SelectedRoomControls(mousePos);
     }
 
+
+    bool grabingGizmo = false;
     private void SelectedRoomControls(Vector2 mousePos)
     {
         Vector2 endMousePos = mousePos;
@@ -170,81 +174,99 @@ partial class RoomHandler
             ResetSelection();
             return;
         }
-        
-        bool gizmoGrabed = gizmoHandler.UpdateGizmos(mousePos, selectedRoom.Box, ScaleRoom(selectedTransform));
-        
-        if (Input.LBDown())
+
+        //Main stuff
+        if(Input.LBUp() || grabingGizmo)
         {
-            if (gizmoGrabed)
-                selectedTransform = gizmoHandler.GizmosControls(mousePos, selectedTransform);
-            else
+            gizmoHandler.UpdateGizmos(mousePos, selectedRoom.Box, ScaleRoom(transformRoom.Box));
+        }
+
+        if(Input.LBPressed())
+        {
+            grabingGizmo = gizmoHandler.CheckTouchingGizmos(mousePos);
+        }
+
+        if(Input.LBDown())
+        {
+            if(!grabingGizmo)
             {
                 Mouse.SetCursor(MouseCursor.SizeAll);
                 Point difference = (editor.GetMouseTile(editor.StartMousePos) - editor.GetMouseTile(endMousePos));
-                selectedTransform.Location = selectedRoom.Box.Location - difference;
+                Point finalPos = selectedRoom.Box.Location - difference;
+
+                if(transformRoom.Box.Location != finalPos)
+                    transformRoom.Box = transformRoom.Box with { Location = finalPos };
             }
-            
+            else
+            {
+                Rectangle gizmoTransform = gizmoHandler.GizmosControls(mousePos, transformRoom.Box);
+
+                if(gizmoTransform != transformRoom.Box)
+                    transformRoom.Box = gizmoTransform;
+            }
+
             canChangeRoom = true;
             foreach (Room room in rooms)
             {
                 if(selectedRoom == room) continue;
                 
-                if (selectedTransform.Intersects(room.Box))
+                if (transformRoom.Box.Intersects(room.Box))
                     canChangeRoom = false;
             }
-            
         }
-
+            
         if (Input.LBReleased())
         {
+            Mouse.SetCursor(MouseCursor.Arrow);
+            gizmoHandler.Released();
+
             if (canChangeRoom)
-                selectedRoom.Box = selectedTransform;
+                selectedRoom.Box = transformRoom.Box;
             else
             {
                 canChangeRoom = true;
-                selectedTransform = selectedRoom.Box;
+                transformRoom.Box = selectedRoom.Box;
             }
         }
-        
     }
 
     //Draw
     public void DrawUnderGrid(SpriteBatch spriteBatch)
-    {            
-        //TODO: maybe optimize tile drawing
+    {
         foreach (Room room in rooms)
         {
-            if (room == selectedRoom) continue;
+            Room finalRoom = room;
+            Color color = roomColor;
             
-            spriteBatch.FillRectangle(ScaleRoom(room.Box), roomColor);
-            
-            for(int y = 0; y < room.Tiles.GetLength(0); ++y)
-            for(int x = 0; x < room.Tiles.GetLength(1); ++x)
+            if(room == selectedRoom)
             {
-                if(room.Tiles[y,x] == Map.Tile.None) continue;
-                
-                Point pos = (new Point(x, y) + room.Box.Location) * new Point(Map.TileUnit);
-                spriteBatch.FillRectangle(new Rectangle(pos, new Point(Map.TileUnit)), Color.Black);
+                finalRoom = transformRoom;
+                color = canChangeRoom ? canPlaceColor : cannotPlaceColor;
+            }
+        
+            spriteBatch.FillRectangle(ScaleRoom(finalRoom.Box), color);
+
+            //TODO: maybe optimize tile drawing
+            int x = 0;
+            int y = 0;
+
+            IEnumerable<IEnumerable<Map.Tile>> rows = finalRoom.ReadOnlyTiles;
+
+            foreach(IEnumerable<Map.Tile> row in rows)
+            {
+                foreach(Map.Tile tile in row)
+                {
+                    Color tileColor = tile != Map.Tile.None ? Color.Black : Color.Transparent;
+                    Point pos = (new Point(x, y) + finalRoom.Box.Location) * new Point(Map.TileUnit);
+                    spriteBatch.FillRectangle(new Rectangle(pos, new Point(Map.TileUnit)), tileColor);
+
+                    x++;
+                }
+                y++;
+                x = 0;
             }
         }
-
-        return;
-
-        if (selectedRoom != null)
-        {
-            Rectangle final = ScaleRoom(selectedTransform);
-            spriteBatch.FillRectangle(final, canChangeRoom ? canPlaceColor : cannotPlaceColor);
-
-            for(int y = 0; y < selectedRoom.Tiles.GetLength(0); ++y)
-            for(int x = 0; x < selectedRoom.Tiles.GetLength(1); ++x)
-            {
-                if(selectedRoom.Tiles[y,x] == Map.Tile.None) continue;
-
-                Point pos = (new Point(x, y) + selectedTransform.Location) * new Point(Map.TileUnit);
-                spriteBatch.FillRectangle(new Rectangle(pos, new Point(Map.TileUnit)), Color.Black);
-            }
-        }
-    }
+    } 
     
     public void DrawOnGrid(SpriteBatch spriteBatch)
     {
@@ -261,12 +283,15 @@ partial class RoomHandler
         
         if (selectedRoom != null)
         {
-            Rectangle final = ScaleRoom(selectedTransform);
+            Rectangle final = ScaleRoom(transformRoom.Box);
             spriteBatch.DrawRectangle(final, selectedColor, 1.5f / editor.CameraMatrixScale.X);
-            gizmoHandler.DrawGizmos(spriteBatch);
+
+            if(Input.LBUp() || grabingGizmo)
+                gizmoHandler.DrawGizmos(spriteBatch);
         }
     }
 
+    //General
     private Rectangle ScaleRoom(Rectangle room)
     {
         return room with
@@ -289,6 +314,9 @@ class Room
             
             box = value;
 
+            if(oldBox.Size == box.Size) return;
+
+
             int yOffset = oldBox.Height - box.Height;
             int xOffset = oldBox.Width - box.Width;
 
@@ -304,28 +332,37 @@ class Room
                 bool outside = (
                     y + yOffset < 0 ||
                     x + xOffset < 0 ||
-                    y + yOffset >= tiles.GetLength(0) ||
-                    x + xOffset >= tiles.GetLength(1)
+                    y + yOffset >= Tiles.GetLength(0) ||
+                    x + xOffset >= Tiles.GetLength(1)
                 );
                 if (outside) continue;
 
-                newTiles[y, x] = tiles[y + yOffset, x + xOffset];
+                newTiles[y, x] = Tiles[y + yOffset, x + xOffset];
             }
 
-            tiles = newTiles;
+            Tiles = newTiles;
+            ReadOnlyTiles = Tiles.ToJaggedArray<Map.Tile>();
         } 
     }
     
-    private Map.Tile[,] tiles;
-    
     //TODO: readonly two dimensional array
-    public Map.Tile[,] Tiles => tiles;
+    public Map.Tile[,] Tiles;
+    public IEnumerable<IEnumerable<Map.Tile>> ReadOnlyTiles;
     
-    public void SetTile(int x, int y, Map.Tile tile) => tiles[y, x] = tile;
+    public void SetTile(int x, int y, Map.Tile tile) 
+    {
+        Tiles[y, x] = tile;
+        ReadOnlyTiles = Tiles.ToJaggedArray<Map.Tile>();
+    }
 
-    public Room(Rectangle box)
+    public Room(Rectangle box, Map.Tile[,] tiles) 
     {
         this.box = box;
-        tiles = new Map.Tile[box.Height, box.Width];
+        Tiles = (Map.Tile[,])tiles.Clone();
+        ReadOnlyTiles = Tiles.ToJaggedArray<Map.Tile>();
     }
+
+    public Room(Rectangle box) : this(box, new Map.Tile[box.Height, box.Width] ){}
+
+    public Room() : this(Rectangle.Empty) {}
 }

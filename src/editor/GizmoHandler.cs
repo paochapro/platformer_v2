@@ -17,7 +17,7 @@ class GizmoHandler
     private Gizmos gizmos;
     private Rectangle selectedRoomBox;
     
-    private const float gizmoAlpha = 50;
+    private const float gizmoAlpha = 0.05f;
 
     public GizmoHandler(Editor editor, RoomHandler roomHandler)
     {
@@ -36,17 +36,20 @@ class GizmoHandler
         public Gizmo(Vector2 side)
         {
             Side = side;
+
+            const int minusV = 100;
+            const int minusH = 100;
             
             if (side.X == 0)
             {
                 Cursor = MouseCursor.SizeNS;
-                Color = Editor.gridCenterVerticalColor;
+                Color = new(132 - minusV, 206 - minusV, 13 - minusV);//Editor.gridCenterVerticalColor;
             }
 
             if (side.Y == 0)
             {
                 Cursor = MouseCursor.SizeWE;
-                Color = Editor.gridCenterHorizontalColor;
+                Color = new(208-minusH,56-minusH,78-minusH);//Editor.gridCenterHorizontalColor;
             }
 
             if (side == new Vector2(-1,-1) || side == new Vector2(1,1))
@@ -132,9 +135,10 @@ class GizmoHandler
     private const int cornerGizmoSizeDefault = 16;
     private float cornerGizmoSize;
     private Gizmo? grabedGizmo;
-    
+    public bool GrabingGizmo => grabedGizmo != null;
+
     //Gizmos
-    public bool UpdateGizmos(Vector2 mousePos, Rectangle selectedRoomBox, Rectangle selectedTransform)
+    public void UpdateGizmos(Vector2 mousePos, Rectangle selectedRoomBox, Rectangle selectedTransform)
     {
         RectangleF box = selectedTransform;
         this.selectedRoomBox = selectedRoomBox;
@@ -152,23 +156,25 @@ class GizmoHandler
         gizmos.BottomLeft.Rect       = new(box.Left, box.Bottom - cornerSize, cornerSize, cornerSize);
         gizmos.BottomRight.Rect      = new(box.Right - cornerSize, box.Bottom - cornerSize, cornerSize, cornerSize);
 
-        Gizmo? touchingGizmo = null;
-
         foreach (Gizmo gizmo in gizmos)
-        {
             if (gizmo.Rect.Contains(mousePos))
             {
-                touchingGizmo = gizmo;
                 Mouse.SetCursor(gizmo.Cursor);
+                return;
             }
-        }
 
-        if (Input.LBPressed())
-            grabedGizmo = touchingGizmo;
+        Mouse.SetCursor(MouseCursor.Arrow);
+    }
+
+    public bool CheckTouchingGizmos(Vector2 mousePos)
+    {
+        foreach (Gizmo gizmo in gizmos)
+            if (gizmo.Rect.Contains(mousePos))
+                grabedGizmo = gizmo;
 
         return grabedGizmo != null;
     }
-    
+
     public Rectangle GizmosControls(Vector2 mousePos, Rectangle selectedTransform)
     {
         if (grabedGizmo == null)
@@ -222,10 +228,14 @@ class GizmoHandler
         return selectedTransform;
     }
 
+    public void Released()
+    {
+        grabedGizmo = null;
+    }
+
     public void DrawGizmos(SpriteBatch spriteBatch)
     {
         //Gizmos
-
         foreach (Gizmo gizmo in gizmos)
         {
             spriteBatch.FillRectangle(gizmo.Rect, new Color(gizmo.Color, gizmoAlpha));

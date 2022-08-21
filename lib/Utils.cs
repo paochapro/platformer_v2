@@ -1,4 +1,5 @@
 ﻿using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Input;
 using MonoGame.Extended;
 
 namespace Lib;
@@ -41,7 +42,22 @@ internal static class Utils
 
         return result;
     }
-    
+
+    public static T[][] ToJaggedArray<T>(this T[,] array)
+    {
+        T[][] jaggedArray = new T[array.GetLength(0)][];
+
+        for(int row = 0; row < array.GetLength(0); ++row)
+        {
+            jaggedArray[row] = new T[array.GetLength(1)];
+
+            for(int column = 0; column < array.GetLength(1); ++column)
+                jaggedArray[row][column] = array[row,column];
+        }
+
+        return jaggedArray;
+    }
+
     //Randomness
     public static int RandomBetween(int a, int b)
     {

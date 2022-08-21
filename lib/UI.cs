@@ -30,7 +30,7 @@ abstract partial class UI
     
     public static void UpdateElements(KeyboardState keys, MouseState mouse)
     {
-        Mouse.SetCursor(MouseCursor.Arrow);
+        //Mouse.SetCursor(MouseCursor.Arrow);
 
         foreach (UI element in elements)
             if (element.layer == CurrentLayer && !element.locked)

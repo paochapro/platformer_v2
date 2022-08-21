@@ -167,7 +167,9 @@ class Editor : GameScreen
         graphics.SetRenderTarget(viewmapRenderTarget);
         graphics.Clear(viewmap_BgColor);
         
-        spriteBatch.Begin(transformMatrix: Camera.GetViewMatrix());
+        spriteBatch.Begin(transformMatrix: Camera.GetViewMatrix(), blendState: BlendState.AlphaBlend);
+
+
         DrawViewmap(spriteBatch);
         spriteBatch.End();
         
@@ -204,7 +206,7 @@ class Editor : GameScreen
     {
         return new( (int)Math.Floor(mousePos.X / (float)TileUnit), (int)Math.Floor(mousePos.Y / (float)TileUnit) );
     }
-    
+
     //Viewmap
     private static readonly Rectangle viewmap = new(menuWidth, 0, 1200,800);
     public static readonly Color viewmap_BgColor = new(60,60,60);
