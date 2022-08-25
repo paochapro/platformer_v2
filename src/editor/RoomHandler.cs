@@ -149,9 +149,7 @@ partial class RoomHandler
                 if (room.Box.Contains(startMouseTile))
                 {
                     selectedRoom = room;
-                    transformRoom = new Room(room.Box, room.Tiles);
-
-                    transformRoom.Box = room.Box;
+                    transformRoom = (Room)room.Clone();
                     gizmoHandler = new GizmoHandler(editor, this);
                 }
 
@@ -201,8 +199,11 @@ partial class RoomHandler
             {
                 Rectangle gizmoTransform = gizmoHandler.GizmosControls(mousePos, transformRoom.Box);
 
-                if(gizmoTransform != transformRoom.Box)
+                if (gizmoTransform != transformRoom.Box)
+                {
+                    transformRoom = (Room)selectedRoom.Clone();
                     transformRoom.Box = gizmoTransform;
+                }
             }
 
             canChangeRoom = true;
@@ -250,7 +251,7 @@ partial class RoomHandler
             int x = 0;
             int y = 0;
 
-            IEnumerable<IEnumerable<Map.Tile>> rows = finalRoom.ReadOnlyTiles;
+            IEnumerable<IEnumerable<Map.Tile>> rows = finalRoom.Tiles;
 
             foreach(IEnumerable<Map.Tile> row in rows)
             {
@@ -302,8 +303,18 @@ partial class RoomHandler
     }
 }
 
-class Room
+
+//TODO: needs rework
+class Room : ICloneable
 {
+    public object Clone()
+    {
+        Room newRoom = new Room(box);
+        newRoom.tiles = (Map.Tile[,])tiles.Clone();
+        newRoom.readonlyTiles = tiles.ToJaggedArray();
+        return newRoom;
+    }
+
     private Rectangle box;
     public Rectangle Box
     {
@@ -332,37 +343,35 @@ class Room
                 bool outside = (
                     y + yOffset < 0 ||
                     x + xOffset < 0 ||
-                    y + yOffset >= Tiles.GetLength(0) ||
-                    x + xOffset >= Tiles.GetLength(1)
+                    y + yOffset >= tiles.GetLength(0) ||
+                    x + xOffset >= tiles.GetLength(1)
                 );
                 if (outside) continue;
 
-                newTiles[y, x] = Tiles[y + yOffset, x + xOffset];
+                newTiles[y, x] = tiles[y + yOffset, x + xOffset];
             }
 
-            Tiles = newTiles;
-            ReadOnlyTiles = Tiles.ToJaggedArray<Map.Tile>();
-        } 
+            tiles = newTiles;
+            readonlyTiles = tiles.ToJaggedArray<Map.Tile>();
+        }
     }
-    
-    //TODO: readonly two dimensional array
-    public Map.Tile[,] Tiles;
-    public IEnumerable<IEnumerable<Map.Tile>> ReadOnlyTiles;
+
+    private Map.Tile[,] tiles;
+    private IEnumerable<IEnumerable<Map.Tile>> readonlyTiles;
+    public IEnumerable<IEnumerable<Map.Tile>> Tiles => readonlyTiles;
     
     public void SetTile(int x, int y, Map.Tile tile) 
     {
-        Tiles[y, x] = tile;
-        ReadOnlyTiles = Tiles.ToJaggedArray<Map.Tile>();
+        tiles[y, x] = tile;
+        readonlyTiles = tiles.ToJaggedArray<Map.Tile>();
     }
-
-    public Room(Rectangle box, Map.Tile[,] tiles) 
+    
+    public Room(Rectangle box)
     {
         this.box = box;
-        Tiles = (Map.Tile[,])tiles.Clone();
-        ReadOnlyTiles = Tiles.ToJaggedArray<Map.Tile>();
-    }
-
-    public Room(Rectangle box) : this(box, new Map.Tile[box.Height, box.Width] ){}
+        this.tiles = new Map.Tile[box.Height, box.Width];
+        this.readonlyTiles = Enumerable.Empty<IEnumerable<Map.Tile>>();
+    } 
 
     public Room() : this(Rectangle.Empty) {}
 }

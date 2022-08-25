@@ -1,4 +1,1 @@
 Source File,Dest File,Processor Type,Content Type,Source File Size,Dest File Size,Build Seconds
-"D:/Files/C#/projects/games/platformer_v2/Content/bahnschrift.spritefont","D:/Files/C#/projects/games/platformer_v2/Content/bin/DesktopGL/Content/bahnschrift.xnb","FontDescriptionProcessor","SpriteFontContent",2074,37922,1,7009143
-"D:/Files/C#/projects/games/platformer_v2/Content/error.png","D:/Files/C#/projects/games/platformer_v2/Content/bin/DesktopGL/Content/error.xnb","TextureProcessor","Texture2DContent",252,4181,0,2725753
-"D:/Files/C#/projects/games/platformer_v2/Content/player.png","D:/Files/C#/projects/games/platformer_v2/Content/bin/DesktopGL/Content/player.xnb","TextureProcessor","Texture2DContent",235,4181,0,0224062

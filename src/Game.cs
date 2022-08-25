@@ -5,6 +5,9 @@ using Microsoft.Xna.Framework.Audio;
 using MonoGame.Extended;
 using MonoGame.Extended.Screens;
 
+using Myra;
+using Myra.Graphics2D.UI;
+
 using Lib;
 using PlatformerV2.LevelEditor;
 using PlatformerV2.Main;
@@ -74,7 +77,8 @@ class MainGame : Game
         Assets.Content = Content;
         UI.Font = Content.Load<SpriteFont>("bahnschrift");
         UI.window = Window;
-        
+        MyraEnvironment.Game = this;
+
         //UI style
         UI.BgDefaultColor = Color.Black;
         UI.BgSelectedColor = Color.Black;

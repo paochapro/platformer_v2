@@ -86,12 +86,16 @@ class Map
         None = 0,
         Wall = 1,
         Spawn = 2,
-        SemiSolid = 7,
         //Entities
         Spring = 3,
         Bonus = 4,
         Spike = 5,
         MovingBlock = 6,
+        SemiSolid = 7,
+        Something = 8,
+        TheTest = 9,
+        HelloTile = 10,
+        AnotherUselessTile = 11,
         //Max
         Max,
     }

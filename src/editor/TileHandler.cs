@@ -13,11 +13,11 @@ class TileHandler
 {
     private Editor editor;
     private RoomHandler roomHandler;
-    private Map.Tile currentTile;
+    public Map.Tile CurrentTile { get; set; }
 
     public TileHandler(Editor editor, RoomHandler roomHandler)
     {
-        currentTile = Map.Tile.Wall;
+        CurrentTile = Map.Tile.Wall;
         this.editor = editor;
         this.roomHandler = roomHandler;
     }
@@ -45,7 +45,7 @@ class TileHandler
         
         if (Input.LBDown())
         {
-            place(currentTile);
+            place(CurrentTile);
         }
     }
 }

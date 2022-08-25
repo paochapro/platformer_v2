@@ -43,13 +43,13 @@ class GizmoHandler
             if (side.X == 0)
             {
                 Cursor = MouseCursor.SizeNS;
-                Color = new(132 - minusV, 206 - minusV, 13 - minusV);//Editor.gridCenterVerticalColor;
+                Color = new(132 - minusV, 206 - minusV, 13 - minusV);
             }
 
             if (side.Y == 0)
             {
                 Cursor = MouseCursor.SizeWE;
-                Color = new(208-minusH,56-minusH,78-minusH);//Editor.gridCenterHorizontalColor;
+                Color = new(208-minusH,56-minusH,78-minusH);
             }
 
             if (side == new Vector2(-1,-1) || side == new Vector2(1,1))
@@ -197,10 +197,10 @@ class GizmoHandler
         {
             selectedTransform.Y = mouseTile.Y;
             
-            int rightSide = selectedRoomBox.Y + selectedRoomBox.Height;
+            int bottomSide = selectedRoomBox.Y + selectedRoomBox.Height;
             
-            if (selectedTransform.Y >= rightSide)
-                selectedTransform.Y = rightSide - 1;
+            if (selectedTransform.Y >= bottomSide)
+                selectedTransform.Y = bottomSide - 1;
             
             selectedTransform.Height = selectedRoomBox.Height + (selectedRoomBox.Y - selectedTransform.Y);
         }

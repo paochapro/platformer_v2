@@ -5,8 +5,16 @@ using Microsoft.Xna.Framework.Audio;
 using MonoGame.Extended;
 using MonoGame.Extended.Screens;
 
+using Myra;
+using Myra.Graphics2D.UI;
+
 using Lib;
+using Myra.Graphics2D;
+using Myra.Graphics2D.Brushes;
+using Myra.Graphics2D.TextureAtlases;
+using Myra.Graphics2D.UI.Styles;
 using PlatformerV2.Base;
+using PlatformerV2.Main;
 using static Lib.Utils;
 
 namespace PlatformerV2.LevelEditor;
@@ -22,13 +30,12 @@ class Editor : GameScreen
     private TileHandler tileHandler;
     
     private Texture2D errorTexture;
+    private int scrollValue;
     
     private bool startMoving;
     private Vector2 startingPoint;
     private Vector2 startingCamera;
     private Vector2 endPoint;
-
-    private int scrollValue;
     
     //Viewmap
     private RenderTarget2D viewmapRenderTarget;
@@ -41,8 +48,27 @@ class Editor : GameScreen
     public Vector2 CameraMatrixScale { get; private set; }
 
     //Building
-    enum Mode { RoomSelection, RoomConstruction, Tiles }
-    private Mode mode;
+    private bool _inRooms;
+    private bool InRooms
+    {
+        get => _inRooms;
+        set
+        {
+            _inRooms = value;
+            inSelection = false;
+            
+            roomsRadio.IsPressed = value;
+            tilesRadio.IsPressed = !value;
+
+            
+            roomHandler.ModeSwitch();
+        }
+    }
+    private bool inSelection;
+    
+    //Menu
+    private Desktop menu;
+    private Point SelectedUITilePosition;
 
     public override void Update(GameTime gameTime)
     {
@@ -66,34 +92,39 @@ class Editor : GameScreen
             StartMousePos = viewmapMousePos;
         }
 
-        if (mode == Mode.RoomSelection)
-            roomHandler.RoomSelectionControls(viewmapMousePos);
-        
-        if(mode == Mode.RoomConstruction)
-            roomHandler.RoomConstructionControls(viewmapMousePos);
-        
-        if(mode == Mode.Tiles)
-            tileHandler.Controls(viewmapMousePos);
-        
+        if (InRooms)
+        {
+            if(inSelection) 
+                roomHandler.RoomSelectionControls(viewmapMousePos);
+            else            
+                roomHandler.RoomConstructionControls(viewmapMousePos);
+        }
+        else
+        {
+            if (inSelection)
+                ;
+            else
+                tileHandler.Controls(viewmapMousePos);
+        }
+
         if (Input.LBReleased())
         {
             StartMousePos = Vector2.Zero;
         }
-
-        if (Input.KeyPressed(Keys.Q))
-        {
-            mode = Mode.RoomSelection;
-            roomHandler.ModeSwitch();
-        }
         
-        if (Input.KeyPressed(Keys.W))
-        {
-            mode = Mode.RoomConstruction;
-            roomHandler.ModeSwitch();
-        }
         if (Input.KeyPressed(Keys.E))
         {
-            mode = Mode.Tiles;
+            InRooms = false;
+        }
+
+        if (Input.KeyPressed(Keys.R))
+        {
+            InRooms = true;
+        }
+
+        if (Input.KeyPressed(Keys.S))
+        {
+            inSelection = true;
             roomHandler.ModeSwitch();
         }
     }
@@ -153,11 +184,7 @@ class Editor : GameScreen
         DrawGrid(spriteBatch);
         roomHandler.DrawOnGrid(spriteBatch);
     }
-    
-    private void DrawMenu(SpriteBatch spriteBatch)
-    {
-    }
-
+ 
     public override void Draw(GameTime gameTime)
     {
         var spriteBatch = Game.SpriteBatch;
@@ -167,9 +194,7 @@ class Editor : GameScreen
         graphics.SetRenderTarget(viewmapRenderTarget);
         graphics.Clear(viewmap_BgColor);
         
-        spriteBatch.Begin(transformMatrix: Camera.GetViewMatrix(), blendState: BlendState.AlphaBlend);
-
-
+        spriteBatch.Begin(transformMatrix: Camera.GetViewMatrix());
         DrawViewmap(spriteBatch);
         spriteBatch.End();
         
@@ -179,8 +204,10 @@ class Editor : GameScreen
         
         spriteBatch.Begin();
         {
-            DrawMenu(spriteBatch);
+            //spriteBatch.Draw(viewmapRenderTarget, new Vector2(menuWidth, 0), Color.White);
             spriteBatch.Draw(viewmapRenderTarget, new Vector2(menuWidth, 0), Color.White);
+            menu.Render();
+            spriteBatch.DrawRectangle(new Rectangle(SelectedUITilePosition, new Point(32)), Color.Gold, 1);
         }
         spriteBatch.End();
     }
@@ -192,6 +219,8 @@ class Editor : GameScreen
         
         viewmapRenderTarget = new RenderTarget2D(Game.GraphicsDevice, viewmap.Width, viewmap.Height);
         errorTexture = Assets.LoadTexture("error");
+
+        InRooms = true;
     }
     
     public override void Initialize()
@@ -218,8 +247,90 @@ class Editor : GameScreen
     private const int menuWidth = 300;
     public static readonly Size ScreenSize = new(menuWidth + viewmap.Width, viewmap.Height);
 
+    private VerticalStackPanel menuPanel;
+    private Grid tilesPanel;
+    private RadioButton roomsRadio;
+    private RadioButton tilesRadio;
+    
     private void CreateUI()
     {
+        const int horizontalMargin = 15;
+        const int tilesHorizontalSlots = 7;
         
+        menuPanel = new VerticalStackPanel()
+        {
+            Width = menuWidth,
+            Height = ScreenSize.Height,
+            Margin = new Myra.Graphics2D.Thickness(horizontalMargin, 0),
+            Background = new SolidBrush(Color.Aqua),
+        };
+        
+        roomsRadio = new RadioButton()
+        {
+            Text = "Rooms",
+            TextColor = Color.Black,
+            //Image = new TextureRegion(Assets.LoadTexture("error")),
+        };
+        
+        tilesRadio = new RadioButton()
+        {
+            Text = "Tiles",
+            TextColor = Color.Black,
+            //Image = new TextureRegion(Assets.LoadTexture("error")),
+        };
+
+        roomsRadio.Click += (s, a) => InRooms = true;
+        tilesRadio.Click += (s, a) => InRooms = false;
+
+        tilesPanel = new() {
+            Width = tilesHorizontalSlots * 32,
+            Height = 32 * 2,
+            Background = new SolidBrush(Color.Green),
+        };
+
+        tilesPanel.ShowGridLines = true;
+        
+        int gridColumn = 0;
+        int gridRow = 0;
+        
+        foreach (Map.Tile tile in Enum.GetValues<Map.Tile>())
+        {
+            if(tile == Map.Tile.Max) break;
+            
+            Texture2D tileTexture = Assets.LoadTexture("texture_" + Enum.GetName(tile).ToLower());
+            
+            var tileButton = new ImageButton() {
+                Image = new TextureRegion(tileTexture),
+                Width = 32,
+                Height = 32,
+                GridColumn = gridColumn,
+                GridRow = gridRow,
+            };
+            
+            gridColumn++;
+
+            if (gridColumn * 32 >= tilesPanel.Width)
+            {
+                gridColumn = 0;
+                gridRow++;
+            }
+            
+            tilesPanel.Widgets.Add(tileButton);
+            
+            tileButton.Click += (s,a) =>
+            {
+                tileHandler.CurrentTile = tile;
+                SelectedUITilePosition = tileButton.ContainerBounds.Location + tilesPanel.ContainerBounds.Location + menuPanel.ActualBounds.Location;
+            };
+        }
+
+        menuPanel.Widgets.Add(roomsRadio);
+        menuPanel.Widgets.Add(tilesRadio);
+        menuPanel.Widgets.Add(new Grid() { Height = 60 });
+        menuPanel.Widgets.Add(tilesPanel);
+        
+        // Add it to the desktop
+        menu = new Desktop();
+        menu.Root = menuPanel;
     }
 }
