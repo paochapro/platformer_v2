@@ -37,15 +37,11 @@ class TileHandler
                 }
             }
         }
-        
-        if (Input.RBDown())
+
+        if (editor.MouseInside)
         {
-            place(Map.Tile.None);
-        }
-        
-        if (Input.LBDown())
-        {
-            place(CurrentTile);
+            if (Input.RBDown()) place(Map.Tile.None);
+            if (Input.LBDown()) place(CurrentTile);
         }
     }
 }

@@ -7,8 +7,18 @@
     <File>D:/Files/C#/projects/games/platformer_v2/Content/bahnschrift.spritefont</File>
     <File>D:/Files/C#/projects/games/platformer_v2/Content/error.png</File>
     <File>D:/Files/C#/projects/games/platformer_v2/Content/player.png</File>
+    <File>D:/Files/C#/projects/games/platformer_v2/Content/texture_bonus.png</File>
+    <File>D:/Files/C#/projects/games/platformer_v2/Content/texture_semisolid.png</File>
+    <File>D:/Files/C#/projects/games/platformer_v2/Content/texture_spike.png</File>
+    <File>D:/Files/C#/projects/games/platformer_v2/Content/texture_spring.png</File>
+    <File>D:/Files/C#/projects/games/platformer_v2/Content/texture_wall.png</File>
   </SourceFiles>
   <DestFiles>
+    <File xsi:nil="true" />
+    <File xsi:nil="true" />
+    <File xsi:nil="true" />
+    <File xsi:nil="true" />
+    <File xsi:nil="true" />
     <File xsi:nil="true" />
     <File xsi:nil="true" />
     <File xsi:nil="true" />

@@ -33,5 +33,9 @@ class Spike : Interactable
 
 partial class Player : Entity
 {
-    public void SpikeBehavior() => Death();
+    public void SpikeBehavior()
+    {
+        if(velocity.Y >= 0)
+            Death();
+    } 
 }

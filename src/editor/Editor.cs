@@ -22,7 +22,23 @@ namespace PlatformerV2.LevelEditor;
 class Editor : GameScreen
 {
     public new MainGame Game => base.Game as MainGame;
-    public Editor(MainGame game) : base(game) {}
+
+    public Editor(MainGame game) : base(game)
+    {
+        TileTextures = new();
+
+        IEnumerable<Map.Tile> tiles = Enum.GetValues<Map.Tile>().Skip(1).SkipLast(1);
+
+        foreach (Map.Tile tile in tiles)
+        {
+            if (tile == Map.Tile.Spawn)
+            {
+                TileTextures.Add(tile, Assets.LoadTexture("player"));
+                continue;
+            }
+            TileTextures.Add(tile, Assets.LoadTexture("texture_" + Enum.GetName(tile).ToLower()));
+        }
+    }
 
     public const int TileUnit = PlatformerV2.Main.Map.TileUnit;
 
@@ -37,6 +53,9 @@ class Editor : GameScreen
     private Vector2 startingCamera;
     private Vector2 endPoint;
     
+    //Textures
+    public Dictionary<Map.Tile, Texture2D> TileTextures { get; init; }
+
     //Viewmap
     private RenderTarget2D viewmapRenderTarget;
     private Vector2 viewmapMousePos;
@@ -69,32 +88,49 @@ class Editor : GameScreen
     //Menu
     private Desktop menu;
     private Point SelectedUITilePosition;
+    
+    private bool _mousePressedInside;
+    public bool MousePressedInside => _mousePressedInside;
+    public bool MouseInside => Input.Mouse.X > menuWidth;
 
     public override void Update(GameTime gameTime)
     {
         Controls();
+        
         Camera.GetViewMatrix().Decompose(out Vector2 cameraMatrixPos, out float rotation, out Vector2 cameraMatrixScale);
 
         CameraMatrixPos = cameraMatrixPos;
         CameraMatrixScale = cameraMatrixScale;
         
         viewmapMousePos = Camera.ScreenToWorld((Input.Mouse.Position - new Point(menuWidth,0)).ToVector2());
-        scrollValue += Input.Mouse.ScrollWheelValue - Input.PreviousMouse.ScrollWheelValue;
     }
     
     //Controls
     private void Controls()
     {
-        NavigationControls();
+        //Switch modes
+        if (Input.KeyPressed(Keys.E)) InRooms = false;
+        if (Input.KeyPressed(Keys.R)) InRooms = true;
+        if (Input.KeyPressed(Keys.S))
+        {
+            inSelection = true;
+            roomHandler.ModeSwitch();
+        }
+        
+        //Navigation
+        if(MouseInside) 
+            NavigationControls();
 
+        //Different controls
         if (Input.LBPressed())
         {
             StartMousePos = viewmapMousePos;
+            _mousePressedInside = MouseInside;
         }
-
+        
         if (InRooms)
         {
-            if(inSelection) 
+            if(inSelection)
                 roomHandler.RoomSelectionControls(viewmapMousePos);
             else            
                 roomHandler.RoomConstructionControls(viewmapMousePos);
@@ -106,31 +142,18 @@ class Editor : GameScreen
             else
                 tileHandler.Controls(viewmapMousePos);
         }
-
+        
         if (Input.LBReleased())
         {
             StartMousePos = Vector2.Zero;
-        }
-        
-        if (Input.KeyPressed(Keys.E))
-        {
-            InRooms = false;
-        }
-
-        if (Input.KeyPressed(Keys.R))
-        {
-            InRooms = true;
-        }
-
-        if (Input.KeyPressed(Keys.S))
-        {
-            inSelection = true;
-            roomHandler.ModeSwitch();
+            _mousePressedInside = false;
         }
     }
 
     private void NavigationControls()
     {
+        scrollValue += Input.Mouse.ScrollWheelValue - Input.PreviousMouse.ScrollWheelValue;
+
         float zoom = scrollValue / 2000f + 1f;
         Camera.Zoom = clamp(zoom, Camera.MinimumZoom, Camera.MaximumZoom);
         
@@ -149,7 +172,6 @@ class Editor : GameScreen
         else
             startMoving = false;
     }
-
 
     private void DrawGrid(SpriteBatch spriteBatch)
     {
@@ -204,7 +226,7 @@ class Editor : GameScreen
         
         spriteBatch.Begin();
         {
-            //spriteBatch.Draw(viewmapRenderTarget, new Vector2(menuWidth, 0), Color.White);
+            //TODO: menu (whole ui) renders behind viewmap for some reason
             spriteBatch.Draw(viewmapRenderTarget, new Vector2(menuWidth, 0), Color.White);
             menu.Render();
             spriteBatch.DrawRectangle(new Rectangle(SelectedUITilePosition, new Point(32)), Color.Gold, 1);
@@ -221,6 +243,7 @@ class Editor : GameScreen
         errorTexture = Assets.LoadTexture("error");
 
         InRooms = true;
+        Event.Add((tilesPanel.Widgets.First() as ImageButton).DoClick, 0.2f);
     }
     
     public override void Initialize()
@@ -235,7 +258,7 @@ class Editor : GameScreen
     {
         return new( (int)Math.Floor(mousePos.X / (float)TileUnit), (int)Math.Floor(mousePos.Y / (float)TileUnit) );
     }
-
+    
     //Viewmap
     private static readonly Rectangle viewmap = new(menuWidth, 0, 1200,800);
     public static readonly Color viewmap_BgColor = new(60,60,60);
@@ -251,68 +274,86 @@ class Editor : GameScreen
     private Grid tilesPanel;
     private RadioButton roomsRadio;
     private RadioButton tilesRadio;
+
+    private const string nonCompileMapDirectory = @"..\..\..\Content\maps";
+
+    private void Save(string mapname)
+    {
+        mapname = nonCompileMapDirectory + mapname;
+        mapname = EndingAbcense(mapname, Map.MapExtension);
+        roomHandler.SaveMap(mapname);
+    }
+    
+    private void Load(string? mapname) => roomHandler.LoadMap(mapname);
     
     private void CreateUI()
     {
         const int horizontalMargin = 15;
+        const int verticalMargin = 10;
         const int tilesHorizontalSlots = 7;
-        
-        menuPanel = new VerticalStackPanel()
-        {
+        const int unit = 32;
+        const int sectionOffset = 48;
+        const int buttonWidth = 150;
+        const int buttonHeight = 50;
+
+        //Menu
+        menuPanel = new VerticalStackPanel() {
             Width = menuWidth,
             Height = ScreenSize.Height,
-            Margin = new Myra.Graphics2D.Thickness(horizontalMargin, 0),
-            Background = new SolidBrush(Color.Aqua),
+            Margin = new Myra.Graphics2D.Thickness(horizontalMargin, verticalMargin),
+            //Background = new SolidBrush(Color.Aqua),
         };
         
-        roomsRadio = new RadioButton()
-        {
+        //Mode buttons
+        roomsRadio = new RadioButton() {
             Text = "Rooms",
             TextColor = Color.Black,
             //Image = new TextureRegion(Assets.LoadTexture("error")),
         };
-        
-        tilesRadio = new RadioButton()
-        {
+        tilesRadio = new RadioButton() {
             Text = "Tiles",
             TextColor = Color.Black,
             //Image = new TextureRegion(Assets.LoadTexture("error")),
         };
-
         roomsRadio.Click += (s, a) => InRooms = true;
         tilesRadio.Click += (s, a) => InRooms = false;
 
+        //Tiles Panel
         tilesPanel = new() {
-            Width = tilesHorizontalSlots * 32,
-            Height = 32 * 2,
-            Background = new SolidBrush(Color.Green),
+            Width = tilesHorizontalSlots * unit,
+            Height = unit,
+            Background = new SolidBrush(Color.Gray),
+            Border = new SolidBrush(Color.Black),
+            BorderThickness = new Myra.Graphics2D.Thickness(1),
+            Margin = new Myra.Graphics2D.Thickness(-1),
+            GridLinesColor = new Color(60,60,60),
+            ShowGridLines = true
         };
 
-        tilesPanel.ShowGridLines = true;
-        
         int gridColumn = 0;
         int gridRow = 0;
+
+        var tilesEnum = Enum.GetValues<Map.Tile>().Skip(1).SkipLast(1); //Skipping None and Max
         
-        foreach (Map.Tile tile in Enum.GetValues<Map.Tile>())
+        foreach (Map.Tile tile in tilesEnum)
         {
-            if(tile == Map.Tile.Max) break;
-            
-            Texture2D tileTexture = Assets.LoadTexture("texture_" + Enum.GetName(tile).ToLower());
-            
+            Texture2D tileTexture = TileTextures[tile];
+
             var tileButton = new ImageButton() {
                 Image = new TextureRegion(tileTexture),
-                Width = 32,
-                Height = 32,
+                Width = unit,
+                Height = unit,
                 GridColumn = gridColumn,
                 GridRow = gridRow,
             };
             
             gridColumn++;
 
-            if (gridColumn * 32 >= tilesPanel.Width)
+            if (gridColumn * unit >= tilesPanel.Width)
             {
                 gridColumn = 0;
                 gridRow++;
+                tilesPanel.Height += unit;
             }
             
             tilesPanel.Widgets.Add(tileButton);
@@ -323,13 +364,94 @@ class Editor : GameScreen
                 SelectedUITilePosition = tileButton.ContainerBounds.Location + tilesPanel.ContainerBounds.Location + menuPanel.ActualBounds.Location;
             };
         }
-
-        menuPanel.Widgets.Add(roomsRadio);
-        menuPanel.Widgets.Add(tilesRadio);
-        menuPanel.Widgets.Add(new Grid() { Height = 60 });
-        menuPanel.Widgets.Add(tilesPanel);
         
-        // Add it to the desktop
+        //Save, load, new buttons
+        var saveButton = new TextButton() {
+            Text = "Save",
+            TextColor = Color.White,
+            Width = buttonWidth,
+            Height = buttonHeight,
+        };
+        var loadButton = new TextButton() {
+            Text = "Load",
+            TextColor = Color.White,
+            Width = buttonWidth,
+            Height = buttonHeight,
+        };
+        var newButton = new TextButton() {
+            Text = "New",
+            TextColor = Color.White,
+            Width = buttonWidth,
+            Height = buttonHeight
+        };
+        
+        //TODO: add unsaved changes warning
+        saveButton.Click += (s, a) => {
+            Myra.Graphics2D.UI.TextBox tbMapName = new()
+            {
+                TextColor = Color.White,
+                HintText = "Enter map name",
+                MaxWidth = 250,
+                MinWidth = 250,
+                Wrap = true
+            };
+
+            Dialog saveWindow = Dialog.CreateMessageBox("Save", tbMapName);
+            saveWindow.ButtonOk.Click += (s, a) => Save(tbMapName.Text);
+            saveWindow.ShowModal(menu, Point.Zero);
+        };
+        loadButton.Click += (s, a) => {
+            ListBox maplist = new();
+            
+            var mapfiles = Directory.GetFiles(nonCompileMapDirectory, "*" + Map.MapExtension);
+            
+            //Load custom all maps
+            foreach (string mapfile in mapfiles)
+            {
+                string mapname = mapfile.Substring(mapfile.LastIndexOf("\\") + 1);
+                maplist.Items.Add(new ListItem(mapname) { Color = Color.White });
+            }
+            
+            Dialog loadWindow = Dialog.CreateMessageBox("Choose map", maplist);
+
+            loadWindow.ButtonOk.Click += (s, a) =>
+            {
+                if (maplist.SelectedIndex.HasValue)
+                {
+                    Load(mapfiles[maplist.SelectedIndex.Value]);
+                }
+            };
+            
+            loadWindow.ShowModal(menu, Point.Zero);
+        };
+        newButton.Click += (s, a) => {
+            Load(null);
+        };
+
+        //Adding elements
+        var addOffset = (int offset) => menuPanel.Widgets.Add(new Grid() { Height = offset });
+
+        const int forthOffset = sectionOffset / 4;
+        
+        //Mode
+        menuPanel.Widgets.Add(roomsRadio);
+        addOffset(forthOffset);
+        menuPanel.Widgets.Add(tilesRadio);
+        addOffset(sectionOffset);
+        
+        //Tile panel
+        menuPanel.Widgets.Add(new Myra.Graphics2D.UI.Label() { Text = "Tiles:", TextColor = Color.Black } );
+        menuPanel.Widgets.Add(tilesPanel);
+        addOffset(sectionOffset);
+        
+        //Save, load buttons
+        menuPanel.Widgets.Add(saveButton);
+        addOffset(forthOffset);
+        menuPanel.Widgets.Add(loadButton);
+        addOffset(forthOffset);
+        menuPanel.Widgets.Add(newButton);
+        
+
         menu = new Desktop();
         menu.Root = menuPanel;
     }

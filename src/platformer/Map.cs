@@ -92,10 +92,6 @@ class Map
         Spike = 5,
         MovingBlock = 6,
         SemiSolid = 7,
-        Something = 8,
-        TheTest = 9,
-        HelloTile = 10,
-        AnotherUselessTile = 11,
         //Max
         Max,
     }

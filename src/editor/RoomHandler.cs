@@ -8,7 +8,7 @@ using PlatformerV2.Main;
 
 namespace PlatformerV2.LevelEditor;
 
-partial class RoomHandler
+class RoomHandler
 {
     private Editor editor;
     private GizmoHandler gizmoHandler;
@@ -27,7 +27,6 @@ partial class RoomHandler
     private bool canChangeRoom;
 
     //Room construction
-    private bool isConstructingRoom;
     private Rectangle constructionRoomOutline;
     private Rectangle constructionRoom;
     
@@ -45,7 +44,6 @@ partial class RoomHandler
     public void ModeSwitch()
     {
         canChangeRoom = false;
-        isConstructingRoom = false;
         constructionRoom = Rectangle.Empty;
         constructionRoomOutline = Rectangle.Empty;
         
@@ -87,34 +85,14 @@ partial class RoomHandler
     
     public void RoomConstructionControls(Vector2 mousePos)
     {
-        if (Input.LBPressed())
-        {
-            isConstructingRoom = true;
-        }
-
-        if (isConstructingRoom)
-            ConstructionControls(mousePos);
-        else
-        {
-            constructionRoomOutline = Rectangle.Empty;
-            constructionRoom = Rectangle.Empty;
-        }
+        if (!editor.MousePressedInside) return;
         
-        if (Input.LBReleased())
-        {
-            isConstructingRoom = false;
-            return;
-        }
-    }
-
-    private void ConstructionControls(Vector2 mousePos)
-    {
         if (Input.LBDown())
         {
             constructionRoom = ConstructRoom(editor.GetMouseTile(editor.StartMousePos), editor.GetMouseTile(mousePos));
             constructionRoomOutline = ScaleRoom(constructionRoom);
         }
-        
+
         if (Input.LBReleased())
         {
             if(canChangeRoom) 
@@ -122,25 +100,24 @@ partial class RoomHandler
             
             constructionRoomOutline = Rectangle.Empty;
             constructionRoom = Rectangle.Empty;
-
-            isConstructingRoom = false;
         }
     }
-
     //Room selection
     private void ResetSelection()
     {
         transformRoom = null;
         selectedRoom = null;
         gizmoHandler = null;
-
         grabingGizmo = false;
+        
+        Mouse.SetCursor(MouseCursor.Arrow);
     }
 
     public void RoomSelectionControls(Vector2 mousePos)
     {
         Point startMouseTile = editor.GetMouseTile(editor.StartMousePos);
         
+        if(editor.MousePressedInside)
         if (Input.LBPressed() && (selectedRoom == null || !selectedRoom.Box.Contains(startMouseTile)))
         {
             ResetSelection();
@@ -160,8 +137,61 @@ partial class RoomHandler
             SelectedRoomControls(mousePos);
     }
 
+    //Loading, saving
+    public void LoadMap(string? mapfile)
+    {
+        Console.WriteLine("loading: " + (mapfile ?? "empty map (not a file)"));
+        
+        rooms.Clear();
+        ModeSwitch();
 
-    bool grabingGizmo = false;
+        if (mapfile == null) return;
+
+        Room NextRoom(BinaryReader reader)
+        {
+            Rectangle roomBox = new(reader.ReadInt32(), reader.ReadInt32(), reader.ReadInt32(), reader.ReadInt32());
+            Map.Tile[,] tiles = new Map.Tile[roomBox.Height, roomBox.Width];
+                    
+            for(int y = 0; y < roomBox.Height; ++y)
+            for(int x = 0; x < roomBox.Width; ++x)
+            {
+                tiles[y, x] = (Map.Tile)reader.ReadByte();
+            }
+
+            return new Room(roomBox, tiles);
+        }
+        
+        using (BinaryReader reader = new BinaryReader(File.OpenRead(mapfile)))
+        {
+            while (reader.BaseStream.Position != reader.BaseStream.Length)
+                rooms.Add(NextRoom(reader));
+        }
+    }
+    
+    public void SaveMap(string mapname)
+    {
+        Console.WriteLine("saving: " + mapname);
+        
+        using (BinaryWriter writer = new BinaryWriter(File.Open(mapname, FileMode.Create)))
+        {
+            foreach (Room room in rooms)
+            {
+                writer.Write(room.Box.X);
+                writer.Write(room.Box.Y);
+                writer.Write(room.Box.Width);
+                writer.Write(room.Box.Height);
+
+                foreach (IEnumerable<Map.Tile> row in room.Tiles)
+                foreach (Map.Tile tile in row)
+                {
+                    writer.Write((byte)tile);
+                }
+            }
+        }
+    }
+    
+    private bool grabingGizmo = false;
+
     private void SelectedRoomControls(Vector2 mousePos)
     {
         Vector2 endMousePos = mousePos;
@@ -172,13 +202,16 @@ partial class RoomHandler
             ResetSelection();
             return;
         }
-
-        //Main stuff
+        
+        //TODO: fix mouse inside of viewmap
         if(Input.LBUp() || grabingGizmo)
         {
             gizmoHandler.UpdateGizmos(mousePos, selectedRoom.Box, ScaleRoom(transformRoom.Box));
         }
-
+        
+        //Main stuff
+        if (!editor.MousePressedInside) return;
+        
         if(Input.LBPressed())
         {
             grabingGizmo = gizmoHandler.CheckTouchingGizmos(mousePos);
@@ -257,10 +290,15 @@ partial class RoomHandler
             {
                 foreach(Map.Tile tile in row)
                 {
-                    Color tileColor = tile != Map.Tile.None ? Color.Black : Color.Transparent;
-                    Point pos = (new Point(x, y) + finalRoom.Box.Location) * new Point(Map.TileUnit);
-                    spriteBatch.FillRectangle(new Rectangle(pos, new Point(Map.TileUnit)), tileColor);
+                    //Color tileColor = tile != Map.Tile.None ? Color.Black : Color.Transparent;
+                    //spriteBatch.FillRectangle(new Rectangle(pos, new Point(Map.TileUnit)), tileColor);
 
+                    if (tile != Map.Tile.None)
+                    {
+                        Point pos = (new Point(x, y) + finalRoom.Box.Location) * new Point(Map.TileUnit);
+                        spriteBatch.Draw(editor.TileTextures[tile], new Rectangle(pos, new Point(Map.TileUnit)), Color.White);
+                    }
+                    
                     x++;
                 }
                 y++;
@@ -279,7 +317,7 @@ partial class RoomHandler
         
         Color outlineColor = canChangeRoom ? canPlaceColor : cannotPlaceColor;
 
-        if (isConstructingRoom)
+        if (constructionRoom != Rectangle.Empty)
             spriteBatch.DrawRectangle(constructionRoomOutline, outlineColor, 1.5f / editor.CameraMatrixScale.X);
         
         if (selectedRoom != null)
@@ -291,7 +329,7 @@ partial class RoomHandler
                 gizmoHandler.DrawGizmos(spriteBatch);
         }
     }
-
+    
     //General
     private Rectangle ScaleRoom(Rectangle room)
     {
@@ -365,6 +403,13 @@ class Room : ICloneable
         tiles[y, x] = tile;
         readonlyTiles = tiles.ToJaggedArray<Map.Tile>();
     }
+    
+    public Room(Rectangle box, Map.Tile[,] tiles)
+    {
+        this.box = box;
+        this.tiles = tiles;
+        this.readonlyTiles = tiles.ToJaggedArray();
+    } 
     
     public Room(Rectangle box)
     {
