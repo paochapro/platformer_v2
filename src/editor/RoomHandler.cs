@@ -29,11 +29,18 @@ class RoomHandler
     //Room construction
     private Rectangle constructionRoomOutline;
     private Rectangle constructionRoom;
+
+    //Indicator
+    private (Point pos, Vector2 dir) indicator;
+    private readonly (Point pos, Vector2 dir) emptyIndicator = (Point.Zero, Vector2.Zero);
+    private readonly Size fullRoomSize = new(52,32);
+    private readonly Color indicatorColor = new Color(Color.Yellow, 0.25f);
     
     //Room selection
     private Room? selectedRoom;
     private Room? transformRoom;
 
+    
     //Methods
     public RoomHandler(Editor editor)
     {
@@ -91,6 +98,11 @@ class RoomHandler
         {
             constructionRoom = ConstructRoom(editor.GetMouseTile(editor.StartMousePos), editor.GetMouseTile(mousePos));
             constructionRoomOutline = ScaleRoom(constructionRoom);
+
+            indicator.pos = constructionRoom.Location;
+            indicator.dir = Vector2.One;
+            if (mousePos.X < editor.StartMousePos.X) indicator.dir.X = -1;
+            if (mousePos.Y < editor.StartMousePos.Y) indicator.dir.Y = -1;
         }
 
         if (Input.LBReleased())
@@ -100,15 +112,17 @@ class RoomHandler
             
             constructionRoomOutline = Rectangle.Empty;
             constructionRoom = Rectangle.Empty;
+            indicator = (Point.Zero, Vector2.Zero);
         }
     }
     //Room selection
     private void ResetSelection()
     {
+        grabingGizmo = false;
         transformRoom = null;
         selectedRoom = null;
         gizmoHandler = null;
-        grabingGizmo = false;
+        indicator = emptyIndicator;
         
         Mouse.SetCursor(MouseCursor.Arrow);
     }
@@ -237,6 +251,11 @@ class RoomHandler
                     transformRoom = (Room)selectedRoom.Clone();
                     transformRoom.Box = gizmoTransform;
                 }
+                
+                indicator.pos = transformRoom.Box.Location;
+                indicator.dir = gizmoHandler.GrabedGizmoSide;
+                if (gizmoTransform.X < selectedRoom.Box.X) indicator.dir.X = -1;
+                if (gizmoTransform.Y < selectedRoom.Box.Y) indicator.dir.Y = -1;
             }
 
             canChangeRoom = true;
@@ -247,11 +266,13 @@ class RoomHandler
                 if (transformRoom.Box.Intersects(room.Box))
                     canChangeRoom = false;
             }
+            
         }
             
         if (Input.LBReleased())
         {
             Mouse.SetCursor(MouseCursor.Arrow);
+            indicator = emptyIndicator;
             gizmoHandler.Released();
 
             if (canChangeRoom)
@@ -290,15 +311,11 @@ class RoomHandler
             {
                 foreach(Map.Tile tile in row)
                 {
-                    //Color tileColor = tile != Map.Tile.None ? Color.Black : Color.Transparent;
-                    //spriteBatch.FillRectangle(new Rectangle(pos, new Point(Map.TileUnit)), tileColor);
-
                     if (tile != Map.Tile.None)
                     {
                         Point pos = (new Point(x, y) + finalRoom.Box.Location) * new Point(Map.TileUnit);
                         spriteBatch.Draw(editor.TileTextures[tile], new Rectangle(pos, new Point(Map.TileUnit)), Color.White);
                     }
-                    
                     x++;
                 }
                 y++;
@@ -307,7 +324,7 @@ class RoomHandler
         }
     } 
     
-    public void DrawOnGrid(SpriteBatch spriteBatch)
+    public void DrawOnGrid(SpriteBatch spriteBatch, Vector2 mousePos)
     {
         foreach (Room room in rooms)
         {
@@ -327,6 +344,28 @@ class RoomHandler
 
             if(Input.LBUp() || grabingGizmo)
                 gizmoHandler.DrawGizmos(spriteBatch);
+        }
+
+        if (indicator != emptyIndicator)
+        {
+            Point unit = new Point(Map.TileUnit);
+            Rectangle fullRoom = new(indicator.pos, fullRoomSize - new Size(1,1));
+            Rectangle box = transformRoom?.Box ?? constructionRoom;
+            
+            if (indicator.dir.X == -1) fullRoom.X = fullRoom.X + box.Width - fullRoom.Width - 1;
+            if (indicator.dir.Y == -1) fullRoom.Y = fullRoom.Y + box.Height - fullRoom.Height - 1;
+            
+            Rectangle scaledFullRoom = ScaleRoom(fullRoom);
+
+            var drawIndicator = (Point pos) =>
+            {
+                spriteBatch.FillRectangle(new Rectangle(pos, new Point(Map.TileUnit)), indicatorColor);
+            };
+
+            drawIndicator(new Point(scaledFullRoom.Left, scaledFullRoom.Top));
+            drawIndicator(new Point(scaledFullRoom.Right, scaledFullRoom.Top));
+            drawIndicator(new Point(scaledFullRoom.Left, scaledFullRoom.Bottom));
+            drawIndicator(new Point(scaledFullRoom.Right, scaledFullRoom.Bottom));
         }
     }
     
@@ -364,7 +403,6 @@ class Room : ICloneable
             box = value;
 
             if(oldBox.Size == box.Size) return;
-
 
             int yOffset = oldBox.Height - box.Height;
             int xOffset = oldBox.Width - box.Width;
@@ -415,7 +453,7 @@ class Room : ICloneable
     {
         this.box = box;
         this.tiles = new Map.Tile[box.Height, box.Width];
-        this.readonlyTiles = Enumerable.Empty<IEnumerable<Map.Tile>>();
+        this.readonlyTiles = tiles.ToJaggedArray();
     } 
 
     public Room() : this(Rectangle.Empty) {}

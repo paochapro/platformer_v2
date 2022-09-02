@@ -173,6 +173,7 @@ class Editor : GameScreen
             startMoving = false;
     }
 
+    //Drawing
     private void DrawGrid(SpriteBatch spriteBatch)
     {
         //Camera rectangle
@@ -204,7 +205,7 @@ class Editor : GameScreen
     {
         roomHandler.DrawUnderGrid(spriteBatch);
         DrawGrid(spriteBatch);
-        roomHandler.DrawOnGrid(spriteBatch);
+        roomHandler.DrawOnGrid(spriteBatch, viewmapMousePos);
     }
  
     public override void Draw(GameTime gameTime)
@@ -234,6 +235,7 @@ class Editor : GameScreen
         spriteBatch.End();
     }
 
+    //Initialize
     public override void LoadContent()
     {
         base.LoadContent();
@@ -254,6 +256,7 @@ class Editor : GameScreen
         tileHandler = new TileHandler(this, roomHandler);
     }
     
+    //General
     public Point GetMouseTile(Vector2 mousePos)
     {
         return new( (int)Math.Floor(mousePos.X / (float)TileUnit), (int)Math.Floor(mousePos.Y / (float)TileUnit) );
@@ -275,7 +278,7 @@ class Editor : GameScreen
     private RadioButton roomsRadio;
     private RadioButton tilesRadio;
 
-    private const string nonCompileMapDirectory = @"..\..\..\Content\maps";
+    private const string nonCompileMapDirectory = @"..\..\..\Content\maps\";
 
     private void Save(string mapname)
     {

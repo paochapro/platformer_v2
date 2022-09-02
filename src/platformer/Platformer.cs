@@ -145,12 +145,14 @@ class Platformer : GameScreen
         
         Player.PlayerTexture = Assets.LoadTexture("Player");
         
-        Map.ConvertToBinary("map3.txt", "bin_map3.bin");
-        CurrentMap = new Map("bin_map3", this);
+        CurrentMap = new Map("testy1", this);
     }
 
+    public static readonly Point ScreenSize = new(1664, 1024); //52x32
+        
     public override void Initialize()
     {
+        Game.ChangeScreenSize(ScreenSize);
         Entity.RemoveAll();
         Entity.Platformer = this;
         Camera = new OrthographicCamera(Game.GraphicsDevice);

@@ -16,8 +16,12 @@ class GizmoHandler
     private RoomHandler roomHandler;
     private Gizmos gizmos;
     private Rectangle selectedRoomBox;
-    
     private const float gizmoAlpha = 0.05f;
+    
+    private const int cornerGizmoSizeDefault = 16;
+    private float cornerGizmoSize;
+    private Gizmo? grabedGizmo;
+    public Vector2 GrabedGizmoSide => grabedGizmo.Side;
 
     public GizmoHandler(Editor editor, RoomHandler roomHandler)
     {
@@ -131,11 +135,6 @@ class GizmoHandler
             yield return BottomRight;
         }
     }
-
-    private const int cornerGizmoSizeDefault = 16;
-    private float cornerGizmoSize;
-    private Gizmo? grabedGizmo;
-    public bool GrabingGizmo => grabedGizmo != null;
 
     //Gizmos
     public void UpdateGizmos(Vector2 mousePos, Rectangle selectedRoomBox, Rectangle selectedTransform)
