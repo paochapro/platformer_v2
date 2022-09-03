@@ -15,16 +15,17 @@ class GizmoHandler
     private Editor editor;
     private RoomHandler roomHandler;
     private Gizmos gizmos;
-    private Rectangle selectedRoomBox;
-    private const float gizmoAlpha = 0.05f;
+    private Rectangle initialBox;
     
+    private const float gizmoAlpha = 0.05f;
     private const int cornerGizmoSizeDefault = 16;
     private float cornerGizmoSize;
     private Gizmo? grabedGizmo;
     public Vector2 GrabedGizmoSide => grabedGizmo.Side;
 
-    public GizmoHandler(Editor editor, RoomHandler roomHandler)
+    public GizmoHandler(Rectangle initialBox, Editor editor, RoomHandler roomHandler)
     {
+        this.initialBox = initialBox;
         this.roomHandler = roomHandler;
         this.editor = editor;
         this.gizmos = new Gizmos();
@@ -137,10 +138,9 @@ class GizmoHandler
     }
 
     //Gizmos
-    public void UpdateGizmos(Vector2 mousePos, Rectangle selectedRoomBox, Rectangle selectedTransform)
+    public void UpdateGizmos(Vector2 mousePos, Rectangle viewmapSelectedBox)
     {
-        RectangleF box = selectedTransform;
-        this.selectedRoomBox = selectedRoomBox;
+        RectangleF box = viewmapSelectedBox;
 
         cornerGizmoSize = cornerGizmoSizeDefault / editor.CameraMatrixScale.X;
         float cornerSize = cornerGizmoSize;
@@ -176,18 +176,15 @@ class GizmoHandler
 
     public Rectangle GizmosControls(Vector2 mousePos, Rectangle selectedTransform)
     {
-        if (grabedGizmo == null)
-        {
-            Console.WriteLine("No gizmo grabed in GizmoControls! Line: 294");
-            return Rectangle.Empty;
-        }
-        
+        if (grabedGizmo == null) 
+            throw new Exception("no grabed gizmo in GizmosControls");
+
         Vector2 side = grabedGizmo.Side;
         Point mouseTile = editor.GetMouseTile(mousePos);
 
         if (side.Y == 1)
         {
-            selectedTransform.Height = mouseTile.Y - selectedRoomBox.Y + 1;
+            selectedTransform.Height = mouseTile.Y - initialBox.Y + 1;
             
             if (selectedTransform.Height <= 0) selectedTransform.Height = 1;
         }
@@ -196,17 +193,17 @@ class GizmoHandler
         {
             selectedTransform.Y = mouseTile.Y;
             
-            int bottomSide = selectedRoomBox.Y + selectedRoomBox.Height;
+            int bottomSide = initialBox.Y + initialBox.Height;
             
             if (selectedTransform.Y >= bottomSide)
                 selectedTransform.Y = bottomSide - 1;
             
-            selectedTransform.Height = selectedRoomBox.Height + (selectedRoomBox.Y - selectedTransform.Y);
+            selectedTransform.Height = initialBox.Height + (initialBox.Y - selectedTransform.Y);
         }
 
         if (side.X == 1)
         {
-            selectedTransform.Width = mouseTile.X - selectedRoomBox.X + 1;
+            selectedTransform.Width = mouseTile.X - initialBox.X + 1;
             
             if (selectedTransform.Width <= 0) selectedTransform.Width = 1;
         }
@@ -215,29 +212,22 @@ class GizmoHandler
         {
             selectedTransform.X = mouseTile.X;
 
-            int leftSide = selectedRoomBox.X + selectedRoomBox.Width;
+            int leftSide = initialBox.X + initialBox.Width;
 
             if (selectedTransform.X >= leftSide)
                 selectedTransform.X = leftSide - 1;
             
-            selectedTransform.Width = selectedRoomBox.Width + (selectedRoomBox.X - selectedTransform.X);
+            selectedTransform.Width = initialBox.Width + (initialBox.X - selectedTransform.X);
         }
 
         Mouse.SetCursor(grabedGizmo.Cursor);
         return selectedTransform;
     }
 
-    public void Released()
-    {
-        grabedGizmo = null;
-    }
-
     public void DrawGizmos(SpriteBatch spriteBatch)
     {
         //Gizmos
         foreach (Gizmo gizmo in gizmos)
-        {
             spriteBatch.FillRectangle(gizmo.Rect, new Color(gizmo.Color, gizmoAlpha));
-        }
     }
 }

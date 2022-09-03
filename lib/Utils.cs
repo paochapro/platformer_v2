@@ -23,40 +23,8 @@ internal static class Utils
         if (value < min) value = min;
         return value;
     }
-
     public static string EndingAbcense(string str, string end) => str + (str.EndsWith(end) ? "" : end);
     
-    public static string ReadUntil(this StreamReader reader, char value, bool skipLast = false)
-    {
-        string result = "";
-        int peek = reader.Peek();
-
-        while (Convert.ToChar(peek) != value && peek != -1)
-        {
-            result += Convert.ToChar(reader.Read());
-            peek = reader.Peek();
-        }
-
-        if (skipLast) reader.Read();
-
-        return result;
-    }
-
-    public static T[][] ToJaggedArray<T>(this T[,] array)
-    {
-        T[][] jaggedArray = new T[array.GetLength(0)][];
-
-        for(int row = 0; row < array.GetLength(0); ++row)
-        {
-            jaggedArray[row] = new T[array.GetLength(1)];
-
-            for(int column = 0; column < array.GetLength(1); ++column)
-                jaggedArray[row][column] = array[row,column];
-        }
-
-        return jaggedArray;
-    }
-
     //Randomness
     public static int RandomBetween(int a, int b)
     {
@@ -129,6 +97,52 @@ internal static class Utils
         //Error, impossible
         return -2;
     }
+    
+    //Extensions
+    public static string ReadUntil(this StreamReader reader, char value, bool skipLast = false)
+    {
+        string result = "";
+        int peek = reader.Peek();
+
+        while (Convert.ToChar(peek) != value && peek != -1)
+        {
+            result += Convert.ToChar(reader.Read());
+            peek = reader.Peek();
+        }
+
+        if (skipLast) reader.Read();
+
+        return result;
+    }
+
+    public static T[][] ToJaggedArray<T>(this T[,] array)
+    {
+        T[][] jaggedArray = new T[array.GetLength(0)][];
+
+        for(int row = 0; row < array.GetLength(0); ++row)
+        {
+            jaggedArray[row] = new T[array.GetLength(1)];
+
+            for(int column = 0; column < array.GetLength(1); ++column)
+                jaggedArray[row][column] = array[row,column];
+        }
+
+        return jaggedArray;
+    }
+
+    public static void Iterate<T>(this IEnumerable<T> enumerable, Action<T> func)
+    {
+        foreach (T value in enumerable)
+            func(value);
+    }
+    
+    public static void Iterate<T>(this IEnumerable<T> enumerable, Func<T, bool> func)
+    {
+        foreach (T value in enumerable)
+        {
+            if (!func(value)) return;
+        }
+    }
 
     //Math
     public static float center(float x, float x2, float size)   => (x + x2) / 2 - size / 2;
@@ -159,4 +173,57 @@ static class Directions
     public static Vector2 UpRight       => Up + Right;
     public static Vector2 DownLeft      => Down + Left;
     public static Vector2 DownRight     => Down + Right;
+}
+
+class ReadOnly2DArray<T>
+{
+    private T[,] array;
+    
+    public T this[int y, int x] => array[y,x];
+
+    public int Height => array.GetLength(0);
+    public int Width => array.GetLength(1);
+
+    public void Iterate(Action<int, int> func)
+    {
+        for(int y = 0; y < Height; ++y)
+        for(int x = 0; x < Width; ++x)
+        {
+            func(y,x);
+        }
+    }
+    
+    public void Iterate(Func<int, int, bool> func)
+    {
+        for(int y = 0; y < Height; ++y)
+        for(int x = 0; x < Width; ++x)
+        {
+            if (!func(y, x)) 
+                return;
+        }
+    }
+    
+    public void Iterate(Action<T> func)
+    {
+        for(int y = 0; y < Height; ++y)
+        for(int x = 0; x < Width; ++x)
+        {
+            func(array[y,x]);
+        }
+    }
+    
+    public void Iterate(Func<T, bool> func)
+    {
+        for(int y = 0; y < Height; ++y)
+        for(int x = 0; x < Width; ++x)
+        {
+            if (!func(array[y, x]))
+                return;
+        }
+    }
+    
+    public ReadOnly2DArray(T[,] array)
+    {
+        this.array = array;
+    }
 }

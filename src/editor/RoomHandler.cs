@@ -24,23 +24,23 @@ class RoomHandler
     private static readonly Color selectedColor = Color.Gold;
     
     //General
-    private bool canChangeRoom;
+    private bool canChangeRooms;
 
     //Room construction
     private Rectangle constructionRoomOutline;
     private Rectangle constructionRoom;
 
     //Indicator
-    private (Point pos, Vector2 dir) indicator;
-    private readonly (Point pos, Vector2 dir) emptyIndicator = (Point.Zero, Vector2.Zero);
+    private Vector2 indicatorDirection;
     private readonly Size fullRoomSize = new(52,32);
-    private readonly Color indicatorColor = new Color(Color.Yellow, 0.25f);
+    private readonly Color indicatorColor = new(Color.Yellow, 0.25f);
     
     //Room selection
-    private Room? selectedRoom;
-    private Room? transformRoom;
+    private IEnumerable<Room> selectedRooms => rooms.Where(r => r.Selected);
+    private IEnumerable<Room> nonSelectedRooms => rooms.Except(selectedRooms);
+    private bool singleSelection => selectedRooms.Count() == 1;
+    private bool grabingGizmo = false;
 
-    
     //Methods
     public RoomHandler(Editor editor)
     {
@@ -50,7 +50,7 @@ class RoomHandler
 
     public void ModeSwitch()
     {
-        canChangeRoom = false;
+        canChangeRooms = false;
         constructionRoom = Rectangle.Empty;
         constructionRoomOutline = Rectangle.Empty;
         
@@ -75,19 +75,14 @@ class RoomHandler
 
         Rectangle constructedRoom = Rectangle.Union(new Rectangle(startPos, Size.Empty), new Rectangle(endPos, Size.Empty));
 
-        canChangeRoom = true;
+        canChangeRooms = true;
         foreach (Room room in rooms)
         {
             if (constructedRoom.Intersects(room.Box))
-                canChangeRoom = false;
+                canChangeRooms = false;
         }
         
         return constructedRoom;
-    }
-    
-    private void PlaceRoom(Room room)
-    {
-        rooms.Add(room);
     }
     
     public void RoomConstructionControls(Vector2 mousePos)
@@ -99,31 +94,30 @@ class RoomHandler
             constructionRoom = ConstructRoom(editor.GetMouseTile(editor.StartMousePos), editor.GetMouseTile(mousePos));
             constructionRoomOutline = ScaleRoom(constructionRoom);
 
-            indicator.pos = constructionRoom.Location;
-            indicator.dir = Vector2.One;
-            if (mousePos.X < editor.StartMousePos.X) indicator.dir.X = -1;
-            if (mousePos.Y < editor.StartMousePos.Y) indicator.dir.Y = -1;
+            indicatorDirection = Vector2.One;
+            if (mousePos.X < editor.StartMousePos.X) indicatorDirection.X = -1;
+            if (mousePos.Y < editor.StartMousePos.Y) indicatorDirection.Y = -1;
         }
 
         if (Input.LBReleased())
         {
-            if(canChangeRoom) 
-                PlaceRoom(new Room(constructionRoom));
+            if(canChangeRooms) 
+                rooms.Add(new Room(constructionRoom));
             
             constructionRoomOutline = Rectangle.Empty;
             constructionRoom = Rectangle.Empty;
-            indicator = (Point.Zero, Vector2.Zero);
+            indicatorDirection = Vector2.Zero;
         }
     }
+    
     //Room selection
     private void ResetSelection()
     {
+        indicatorDirection = Vector2.Zero;
         grabingGizmo = false;
-        transformRoom = null;
-        selectedRoom = null;
         gizmoHandler = null;
-        indicator = emptyIndicator;
-        
+        rooms.ForEach(r => r.Selected = false);
+
         Mouse.SetCursor(MouseCursor.Arrow);
     }
 
@@ -132,25 +126,116 @@ class RoomHandler
         Point startMouseTile = editor.GetMouseTile(editor.StartMousePos);
         
         if(editor.MousePressedInside)
-        if (Input.LBPressed() && (selectedRoom == null || !selectedRoom.Box.Contains(startMouseTile)))
+        if(Input.LBPressed() && (selectedRooms.Count() == 0 || !selectedRooms.Any(r => r.Box.Contains(startMouseTile))))
         {
-            ResetSelection();
-
+            if (!Input.IsKeyDown(Keys.LeftControl))
+                ResetSelection();
+            
             foreach (Room room in rooms)
                 if (room.Box.Contains(startMouseTile))
                 {
-                    selectedRoom = room;
-                    transformRoom = (Room)room.Clone();
-                    gizmoHandler = new GizmoHandler(editor, this);
+                    room.Selected = true;
+
+                    if (singleSelection)
+                        gizmoHandler = new GizmoHandler(room.Box, editor, this);
+                    else
+                        gizmoHandler = null;
                 }
 
             return;
         }
            
-        if(selectedRoom != null)
+        if(selectedRooms.Count() != 0)
             SelectedRoomControls(mousePos);
     }
 
+    private void SelectedRoomControls(Vector2 mousePos)
+    {
+        if (Input.KeyPressed(Keys.X))
+        {
+            rooms.RemoveAll(r => r.Selected);
+            ResetSelection();
+            return;
+        }
+        
+        //TODO: fix mouse inside of viewmap
+        if((Input.LBUp() || grabingGizmo) && singleSelection)
+        {
+            gizmoHandler.UpdateGizmos(mousePos, ScaleRoom(selectedRooms.Single().Box));
+        }
+        
+        //Main stuff
+        if (!editor.MousePressedInside) 
+            return;
+        
+        if(Input.LBPressed() && singleSelection)
+        {
+            grabingGizmo = gizmoHandler.CheckTouchingGizmos(mousePos);
+        }
+
+        if(Input.LBDown())
+        {
+            if(!grabingGizmo)
+            {
+                Mouse.SetCursor(MouseCursor.SizeAll);
+                Point difference = (editor.GetMouseTile(editor.StartMousePos) - editor.GetMouseTile(mousePos));
+
+                foreach (Room selectedRoom in selectedRooms)
+                {
+                    Point finalPos = selectedRoom.InitialBox.Location - difference;
+
+                    if (selectedRoom.Box.Location != finalPos)
+                        selectedRoom.Box = selectedRoom.Box with { Location = finalPos };
+                }
+            }
+            else if(singleSelection)
+            {
+                Room selectedRoom = selectedRooms.Single();
+                Rectangle gizmoTransform = gizmoHandler.GizmosControls(mousePos, selectedRoom.Box);
+
+                selectedRoom.Box = gizmoTransform;
+                
+                indicatorDirection = gizmoHandler.GrabedGizmoSide;
+                if (gizmoTransform.X < selectedRoom.Box.X) indicatorDirection.X = -1;
+                if (gizmoTransform.Y < selectedRoom.Box.Y) indicatorDirection.Y = -1;
+            }
+            else
+            {
+                Console.WriteLine("Grabing gizmo and not single selection!");
+            }
+
+            canChangeRooms = true;
+            foreach (Room selectedRoom in selectedRooms)
+            foreach (Room room in nonSelectedRooms)
+            {
+                if (selectedRoom.Box.Intersects(room.Box))
+                    canChangeRooms = false;
+            }
+        }
+            
+        if (Input.LBReleased())
+        {
+            if (canChangeRooms)
+            {
+                selectedRooms.Iterate(r => r.ApplyTransform());
+            }
+            else
+            {
+                canChangeRooms = true;
+                selectedRooms.Iterate(r => r.CancelTransform());
+            }
+            
+            Mouse.SetCursor(MouseCursor.Arrow);
+            indicatorDirection = Vector2.Zero;
+            grabingGizmo = false;
+
+            if (singleSelection)
+                gizmoHandler = new GizmoHandler(selectedRooms.Single().Box, editor, this);
+            else
+                gizmoHandler = null;
+        }
+    }
+    
     //Loading, saving
     public void LoadMap(string? mapfile)
     {
@@ -194,93 +279,17 @@ class RoomHandler
                 writer.Write(room.Box.Y);
                 writer.Write(room.Box.Width);
                 writer.Write(room.Box.Height);
-
-                foreach (IEnumerable<Map.Tile> row in room.Tiles)
-                foreach (Map.Tile tile in row)
+                
+                room.Tiles.Iterate(tile =>
                 {
                     writer.Write((byte)tile);
-                }
-            }
-        }
-    }
-    
-    private bool grabingGizmo = false;
+                });
 
-    private void SelectedRoomControls(Vector2 mousePos)
-    {
-        Vector2 endMousePos = mousePos;
-        
-        if (Input.KeyPressed(Keys.X))
-        {
-            rooms.Remove(selectedRoom);
-            ResetSelection();
-            return;
-        }
-        
-        //TODO: fix mouse inside of viewmap
-        if(Input.LBUp() || grabingGizmo)
-        {
-            gizmoHandler.UpdateGizmos(mousePos, selectedRoom.Box, ScaleRoom(transformRoom.Box));
-        }
-        
-        //Main stuff
-        if (!editor.MousePressedInside) return;
-        
-        if(Input.LBPressed())
-        {
-            grabingGizmo = gizmoHandler.CheckTouchingGizmos(mousePos);
-        }
-
-        if(Input.LBDown())
-        {
-            if(!grabingGizmo)
-            {
-                Mouse.SetCursor(MouseCursor.SizeAll);
-                Point difference = (editor.GetMouseTile(editor.StartMousePos) - editor.GetMouseTile(endMousePos));
-                Point finalPos = selectedRoom.Box.Location - difference;
-
-                if(transformRoom.Box.Location != finalPos)
-                    transformRoom.Box = transformRoom.Box with { Location = finalPos };
-            }
-            else
-            {
-                Rectangle gizmoTransform = gizmoHandler.GizmosControls(mousePos, transformRoom.Box);
-
-                if (gizmoTransform != transformRoom.Box)
-                {
-                    transformRoom = (Room)selectedRoom.Clone();
-                    transformRoom.Box = gizmoTransform;
-                }
-                
-                indicator.pos = transformRoom.Box.Location;
-                indicator.dir = gizmoHandler.GrabedGizmoSide;
-                if (gizmoTransform.X < selectedRoom.Box.X) indicator.dir.X = -1;
-                if (gizmoTransform.Y < selectedRoom.Box.Y) indicator.dir.Y = -1;
-            }
-
-            canChangeRoom = true;
-            foreach (Room room in rooms)
-            {
-                if(selectedRoom == room) continue;
-                
-                if (transformRoom.Box.Intersects(room.Box))
-                    canChangeRoom = false;
-            }
-            
-        }
-            
-        if (Input.LBReleased())
-        {
-            Mouse.SetCursor(MouseCursor.Arrow);
-            indicator = emptyIndicator;
-            gizmoHandler.Released();
-
-            if (canChangeRoom)
-                selectedRoom.Box = transformRoom.Box;
-            else
-            {
-                canChangeRoom = true;
-                transformRoom.Box = selectedRoom.Box;
+                // for(int y = 0; y < room.Tiles.GetLength(0); ++y)
+                // for(int x = 0; x < room.Tiles.GetLength(1); ++x)
+                // {
+                //     writer.Write((byte)room.Tiles[y, x]);
+                // }
             }
         }
     }
@@ -288,72 +297,70 @@ class RoomHandler
     //Draw
     public void DrawUnderGrid(SpriteBatch spriteBatch)
     {
-        foreach (Room room in rooms)
+        //TODO: maybe optimize tile drawing
+        foreach (Room room in nonSelectedRooms)
         {
-            Room finalRoom = room;
-            Color color = roomColor;
+            spriteBatch.FillRectangle(ScaleRoom(room.Box), roomColor);
             
-            if(room == selectedRoom)
+            room.Tiles.Iterate((y, x) =>
             {
-                finalRoom = transformRoom;
-                color = canChangeRoom ? canPlaceColor : cannotPlaceColor;
-            }
-        
-            spriteBatch.FillRectangle(ScaleRoom(finalRoom.Box), color);
+                Map.Tile tile = room.Tiles[y, x];
+                if (tile == Map.Tile.None) return;
+                
+                Point pos = (new Point(x, y) + room.Box.Location) * new Point(Map.TileUnit);
+                spriteBatch.Draw(editor.TileTextures[tile], new Rectangle(pos, new Point(Map.TileUnit)), Color.White);
+            });
+        }
 
-            //TODO: maybe optimize tile drawing
-            int x = 0;
-            int y = 0;
-
-            IEnumerable<IEnumerable<Map.Tile>> rows = finalRoom.Tiles;
-
-            foreach(IEnumerable<Map.Tile> row in rows)
+        foreach (Room selectedRoom in selectedRooms)
+        {
+            spriteBatch.FillRectangle(ScaleRoom(selectedRoom.Box), canChangeRooms ? canPlaceColor : cannotPlaceColor);
+            
+            selectedRoom.InitialTiles.Iterate((y, x) =>
             {
-                foreach(Map.Tile tile in row)
-                {
-                    if (tile != Map.Tile.None)
-                    {
-                        Point pos = (new Point(x, y) + finalRoom.Box.Location) * new Point(Map.TileUnit);
-                        spriteBatch.Draw(editor.TileTextures[tile], new Rectangle(pos, new Point(Map.TileUnit)), Color.White);
-                    }
-                    x++;
-                }
-                y++;
-                x = 0;
-            }
+                Map.Tile tile = selectedRoom.InitialTiles[y, x];
+
+                bool skip = (
+                    tile == Map.Tile.None ||
+                    y < 0 ||
+                    x < 0 ||
+                    y >= selectedRoom.InitialTiles.Height ||
+                    x <= selectedRoom.InitialTiles.Width
+                );
+                if (skip) return;
+
+                Point pos = (new Point(x, y) + selectedRoom.Box.Location) * new Point(Map.TileUnit);
+                spriteBatch.Draw(editor.TileTextures[tile], new Rectangle(pos, new Point(Map.TileUnit)), Color.White);
+            });
         }
     } 
     
     public void DrawOnGrid(SpriteBatch spriteBatch, Vector2 mousePos)
     {
-        foreach (Room room in rooms)
-        {
-            if (room == selectedRoom) continue;
+        foreach (Room room in nonSelectedRooms)
             spriteBatch.DrawRectangle(ScaleRoom(room.Box), roomOutlineColor, 1f / editor.CameraMatrixScale.X);
-        }
         
-        Color outlineColor = canChangeRoom ? canPlaceColor : cannotPlaceColor;
+        Color outlineColor = canChangeRooms ? canPlaceColor : cannotPlaceColor;
 
         if (constructionRoom != Rectangle.Empty)
             spriteBatch.DrawRectangle(constructionRoomOutline, outlineColor, 1.5f / editor.CameraMatrixScale.X);
-        
-        if (selectedRoom != null)
-        {
-            Rectangle final = ScaleRoom(transformRoom.Box);
-            spriteBatch.DrawRectangle(final, selectedColor, 1.5f / editor.CameraMatrixScale.X);
 
-            if(Input.LBUp() || grabingGizmo)
-                gizmoHandler.DrawGizmos(spriteBatch);
+        foreach (Room selectedRoom in selectedRooms)
+        {
+            spriteBatch.DrawRectangle(ScaleRoom(selectedRoom.Box), selectedColor, 1.5f / editor.CameraMatrixScale.X);
         }
+        
+        if((Input.LBUp() || grabingGizmo) && singleSelection)
+            gizmoHandler.DrawGizmos(spriteBatch);
 
-        if (indicator != emptyIndicator)
+        if (indicatorDirection != Vector2.Zero)
         {
+            Rectangle box = selectedRooms.SingleOrDefault()?.Box ?? constructionRoom;
             Point unit = new Point(Map.TileUnit);
-            Rectangle fullRoom = new(indicator.pos, fullRoomSize - new Size(1,1));
-            Rectangle box = transformRoom?.Box ?? constructionRoom;
+            Rectangle fullRoom = new(box.Location, fullRoomSize - new Size(1,1));
             
-            if (indicator.dir.X == -1) fullRoom.X = fullRoom.X + box.Width - fullRoom.Width - 1;
-            if (indicator.dir.Y == -1) fullRoom.Y = fullRoom.Y + box.Height - fullRoom.Height - 1;
+            if (indicatorDirection.X == -1) fullRoom.X = fullRoom.X + box.Width - fullRoom.Width - 1;
+            if (indicatorDirection.Y == -1) fullRoom.Y = fullRoom.Y + box.Height - fullRoom.Height - 1;
             
             Rectangle scaledFullRoom = ScaleRoom(fullRoom);
 
@@ -384,33 +391,27 @@ class RoomHandler
 //TODO: needs rework
 class Room : ICloneable
 {
-    public object Clone()
-    {
-        Room newRoom = new Room(box);
-        newRoom.tiles = (Map.Tile[,])tiles.Clone();
-        newRoom.readonlyTiles = tiles.ToJaggedArray();
-        return newRoom;
-    }
-
     private Rectangle box;
+    private Map.Tile[,] tiles;
+    
+    public ReadOnly2DArray<Map.Tile> Tiles => new(tiles);
     public Rectangle Box
     {
-        get => box; 
+        get => box;
         set
         {
             Rectangle oldBox = box;
-            
             box = value;
 
             if(oldBox.Size == box.Size) return;
 
+            //New tiles
             int yOffset = oldBox.Height - box.Height;
             int xOffset = oldBox.Width - box.Width;
 
             if (oldBox.X == box.X) xOffset = 0;
             if (oldBox.Y == box.Y) yOffset = 0;
             
-            //New tiles
             Map.Tile[,] newTiles = new Map.Tile[box.Height, box.Width];
             
             for (int y = 0; y < newTiles.GetLength(0); ++y)
@@ -428,33 +429,51 @@ class Room : ICloneable
             }
 
             tiles = newTiles;
-            readonlyTiles = tiles.ToJaggedArray<Map.Tile>();
         }
-    }
-
-    private Map.Tile[,] tiles;
-    private IEnumerable<IEnumerable<Map.Tile>> readonlyTiles;
-    public IEnumerable<IEnumerable<Map.Tile>> Tiles => readonlyTiles;
-    
-    public void SetTile(int x, int y, Map.Tile tile) 
-    {
-        tiles[y, x] = tile;
-        readonlyTiles = tiles.ToJaggedArray<Map.Tile>();
     }
     
     public Room(Rectangle box, Map.Tile[,] tiles)
     {
         this.box = box;
         this.tiles = tiles;
-        this.readonlyTiles = tiles.ToJaggedArray();
-    } 
+    }
     
     public Room(Rectangle box)
     {
         this.box = box;
         this.tiles = new Map.Tile[box.Height, box.Width];
-        this.readonlyTiles = tiles.ToJaggedArray();
-    } 
+    }
 
-    public Room() : this(Rectangle.Empty) {}
+    public void SetTile(int x, int y, Map.Tile tile) => tiles[y, x] = tile;
+    
+    public object Clone() => new Room(box, tiles);
+    
+    //Selection
+    private Rectangle initialBox;
+    private Map.Tile[,] initialTiles;
+    private bool selected;
+    
+    public Rectangle InitialBox => initialBox;
+    public ReadOnly2DArray<Map.Tile> InitialTiles => new(initialTiles);
+    public bool Selected 
+    { 
+        get => selected;
+        set 
+        {
+            selected = value;
+            ApplyTransform();
+        }
+    }
+
+    public void CancelTransform()
+    {
+        box = initialBox;
+        tiles = initialTiles;
+    }
+
+    public void ApplyTransform()
+    {
+        initialBox = box;
+        initialTiles = (Map.Tile[,])tiles.Clone();
+    }
 }
